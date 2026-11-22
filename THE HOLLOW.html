@@ -1,0 +1,4522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE HOLLOW — Some doors should never be opened.</title>
+  <meta name="description" content="A standalone first-person psychological horror survival game set inside abandoned Blackthorn Asylum at 3:17 AM." />
+  <meta property="og:title" content="THE HOLLOW" />
+  <meta property="og:description" content="Some doors should never be opened. Explore Blackthorn Asylum and survive The Watcher." />
+  <meta property="og:type" content="website" />
+  <style>
+    :root {
+      --bg-void: #040506;
+      --bg-panel: rgba(10, 13, 14, 0.88);
+      --bg-panel-solid: #0b0e0f;
+      --border-hairline: rgba(168, 179, 171, 0.16);
+      --border-strong: rgba(168, 179, 171, 0.34);
+      --text-primary: #d8ddd8;
+      --text-muted: #7c8780;
+      --text-dim: #4c544f;
+      --accent-amber: #b89862;
+      --accent-sickly: #536b5c;
+      --accent-blood: #8c2929;
+      --accent-blood-bright: #b83838;
+      --font-display: 'Georgia', 'Times New Roman', serif;
+      --font-ui: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'Consolas', 'Courier New', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #020303;
+      overflow: hidden;
+    }
+
+    #rayCanvas, #fxCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #rayCanvas {
+      image-rendering: auto;
+      z-index: 1;
+    }
+
+    #fxCanvas {
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .vignette-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      background: radial-gradient(circle at 50% 50%, transparent 42%, rgba(2, 3, 4, 0.72) 82%, rgba(0, 0, 0, 0.96) 100%);
+      transition: opacity 0.25s ease;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* HUD */
+    #hud {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      margin-left: -3px;
+      margin-top: -3px;
+      border-radius: 50%;
+      border: 1px solid rgba(216, 221, 216, 0.42);
+      background: rgba(216, 221, 216, 0.14);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    #crosshair.active {
+      transform: scale(1.45);
+      border-color: rgba(184, 152, 98, 0.85);
+      background: rgba(184, 152, 98, 0.25);
+    }
+
+    #interactPrompt {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + 24px);
+      transform: translateX(-50%);
+      padding: 6px 14px;
+      background: rgba(6, 8, 9, 0.82);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    #hudTopLeft {
+      position: absolute;
+      top: 22px;
+      left: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 380px;
+    }
+
+    #clockTag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    #objectiveToast {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text-primary);
+      background: rgba(6, 8, 9, 0.72);
+      border: 1px solid var(--border-hairline);
+      padding: 8px 14px;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+
+    #objectiveToast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #subtitleToast {
+      position: absolute;
+      left: 50%;
+      bottom: 96px;
+      transform: translateX(-50%);
+      max-width: min(600px, 86vw);
+      text-align: center;
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 16px;
+      line-height: 1.5;
+      color: #d6dcd7;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+      padding: 8px 16px;
+      background: rgba(4, 5, 6, 0.56);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    #subtitleToast.visible {
+      opacity: 1;
+    }
+
+    #hudBottomLeft {
+      position: absolute;
+      bottom: 24px;
+      left: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 190px;
+    }
+
+    .meter-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: opacity 0.3s ease;
+    }
+
+    .meter-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .meter-track {
+      width: 190px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 100%;
+      background: var(--accent-amber);
+      transition: width 0.12s linear, background-color 0.25s ease;
+    }
+
+    .meter-fill.low {
+      background: var(--accent-blood-bright);
+    }
+
+    .meter-fill.stamina {
+      background: #8a9b90;
+    }
+
+    #hudBottomRight {
+      position: absolute;
+      bottom: 24px;
+      right: 26px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    #pointerHint {
+      position: absolute;
+      top: 22px;
+      right: 26px;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: rgba(6, 8, 9, 0.7);
+      border: 1px solid var(--border-hairline);
+      padding: 6px 12px;
+    }
+
+    #hidingBanner {
+      position: absolute;
+      bottom: 136px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #c6cec8;
+      background: rgba(5, 7, 8, 0.85);
+      border: 1px solid var(--border-hairline);
+      padding: 7px 16px;
+    }
+
+    /* Overlay Screens */
+    .screen-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .menu-backdrop {
+      background: linear-gradient(90deg, rgba(3, 4, 5, 0.9) 0%, rgba(3, 4, 5, 0.62) 48%, rgba(3, 4, 5, 0.84) 100%);
+    }
+
+    .modal-backdrop {
+      background: rgba(3, 4, 5, 0.82);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Main Menu */
+    .menu-container {
+      width: 100%;
+      max-width: 520px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .menu-kicker {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.24em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .menu-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(2.8rem, 6vw, 4.4rem);
+      letter-spacing: 0.22em;
+      color: #e4e8e4;
+      text-shadow: 0 0 28px rgba(0, 0, 0, 0.95);
+    }
+
+    .menu-subtitle {
+      margin: 0 0 24px 0;
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 16px;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .menu-nav {
+      display: flex;
+      flex-direction: column;
+      width: 260px;
+      gap: 10px;
+    }
+
+    .btn {
+      appearance: none;
+      background: rgba(12, 16, 17, 0.78);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 13px 20px;
+      cursor: pointer;
+      transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: rgba(30, 38, 35, 0.88);
+      border-color: var(--border-strong);
+      color: #ffffff;
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent-amber);
+      outline-offset: 2px;
+    }
+
+    .btn-primary {
+      border-color: rgba(184, 152, 98, 0.45);
+      color: #f0ebe0;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      border-color: var(--accent-amber);
+      background: rgba(66, 54, 34, 0.48);
+    }
+
+    .btn-danger {
+      border-color: rgba(140, 41, 41, 0.55);
+      color: #e6c6c6;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      border-color: var(--accent-blood-bright);
+      background: rgba(94, 24, 24, 0.55);
+    }
+
+    .btn-sm {
+      padding: 8px 14px;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+    }
+
+    .endings-meta {
+      margin-top: 16px;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+    }
+
+    /* Panels */
+    .panel {
+      width: 100%;
+      max-width: 720px;
+      max-height: 88vh;
+      overflow-y: auto;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-hairline);
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel-narrow {
+      max-width: 440px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-hairline);
+      padding-bottom: 14px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #e4e8e4;
+    }
+
+    .panel-body {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-size: 14px;
+      line-height: 1.65;
+      color: #bcc4be;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px 20px;
+    }
+
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 13px;
+    }
+
+    .key-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent-amber);
+    }
+
+    /* Settings */
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .setting-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .setting-name {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .setting-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 180px;
+      justify-content: flex-end;
+    }
+
+    input[type="range"] {
+      width: 130px;
+      accent-color: var(--accent-amber);
+      cursor: pointer;
+    }
+
+    select {
+      background: #0d1112;
+      color: var(--text-primary);
+      border: 1px solid var(--border-hairline);
+      padding: 7px 10px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* Inventory */
+    .inv-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 22px;
+    }
+
+    @media (max-width: 680px) {
+      .inv-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .inv-section-title {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .inv-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .inv-item {
+      text-align: left;
+      background: rgba(18, 23, 24, 0.65);
+      border: 1px solid var(--border-hairline);
+      padding: 10px 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .inv-item:hover, .inv-item.selected {
+      border-color: var(--accent-amber);
+      background: rgba(34, 41, 38, 0.8);
+    }
+
+    .inv-count {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent-amber);
+    }
+
+    .inv-detail-box {
+      background: rgba(7, 9, 10, 0.72);
+      border: 1px solid var(--border-hairline);
+      padding: 18px;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .note-paper {
+      font-family: var(--font-display);
+      font-size: 15px;
+      line-height: 1.75;
+      color: #d6d0c0;
+      white-space: pre-wrap;
+    }
+
+    /* Map */
+    #mapCanvas {
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 1 / 1;
+      align-self: center;
+      background: #080a0a;
+      border: 1px solid var(--border-hairline);
+    }
+
+    /* Keypad */
+    .keypad-display {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      letter-spacing: 0.4em;
+      text-align: center;
+      padding: 14px;
+      background: #050707;
+      border: 1px solid var(--border-strong);
+      color: #9cb89f;
+    }
+
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .keypad-btn {
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 16px;
+      background: #101415;
+      border: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .keypad-btn:hover {
+      background: #1b2223;
+      border-color: var(--border-strong);
+    }
+
+    /* Death & Ending Screens */
+    #deathScreen {
+      background: rgba(2, 2, 3, 0.96);
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+      transition: opacity 0.9s ease;
+    }
+
+    .death-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      letter-spacing: 0.28em;
+      color: var(--accent-blood-bright);
+      text-shadow: 0 0 24px rgba(140, 41, 41, 0.45);
+    }
+
+    .death-sub {
+      margin: 0 0 18px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+    }
+
+    #endingScreen {
+      background: #030405;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .ending-box {
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .ending-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(1.9rem, 4vw, 2.8rem);
+      letter-spacing: 0.14em;
+      color: #e4e8e4;
+    }
+
+    .ending-text {
+      font-family: var(--font-display);
+      font-size: 16px;
+      line-height: 1.85;
+      color: #b4bdb7;
+    }
+
+    #jumpscareFlash {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      opacity: 0;
+      background: radial-gradient(circle at 50% 42%, rgba(180, 20, 20, 0.28), rgba(0, 0, 0, 0.94));
+      transition: opacity 0.08s linear;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <canvas id="rayCanvas"></canvas>
+    <canvas id="fxCanvas"></canvas>
+    <div class="vignette-overlay" id="vignette"></div>
+    <div id="jumpscareFlash"></div>
+  </div>
+
+  <!-- GAMEPLAY HUD -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"></div>
+    <div id="interactPrompt" class="hidden"></div>
+    <div id="pointerHint" class="hidden">Click screen to lock mouse · Drag or ←/→ to turn</div>
+    <div id="hidingBanner" class="hidden">Hiding inside locker · Press [E] to exit</div>
+
+    <div id="hudTopLeft">
+      <div id="clockTag" class="tabular">BLACKTHORN ASYLUM · 03:17 AM</div>
+      <div id="objectiveToast"></div>
+    </div>
+
+    <div id="subtitleToast"></div>
+
+    <div id="hudBottomLeft">
+      <div class="meter-row" id="batteryRow">
+        <div class="meter-head">
+          <span>Flashlight</span>
+          <span class="tabular" id="batteryPct">100%</span>
+        </div>
+        <div class="meter-track"><div class="meter-fill" id="batteryFill"></div></div>
+      </div>
+      <div class="meter-row hidden" id="staminaRow">
+        <div class="meter-head">
+          <span>Stamina</span>
+          <span class="tabular" id="staminaPct">100%</span>
+        </div>
+        <div class="meter-track"><div class="meter-fill stamina" id="staminaFill"></div></div>
+      </div>
+    </div>
+
+    <div id="hudBottomRight">
+      <span id="hudKeyHints">[F] Light · [Tab] Inventory · [Esc] Pause</span>
+    </div>
+  </div>
+
+  <!-- MAIN MENU -->
+  <div id="menuScreen" class="screen-overlay menu-backdrop">
+    <div class="menu-container">
+      <div class="menu-kicker">Blackthorn Psychiatric Hospital · 03:17 AM</div>
+      <h1 class="menu-title">THE HOLLOW</h1>
+      <p class="menu-subtitle">"Some doors should never be opened."</p>
+      <div class="menu-nav">
+        <button class="btn btn-primary" id="btnNewGame">New Game</button>
+        <button class="btn hidden" id="btnContinue">Continue</button>
+        <button class="btn" id="btnHowToPlay">How To Play</button>
+        <button class="btn" id="btnSettingsMenu">Settings</button>
+        <button class="btn" id="btnExitTitle">Exit To Title</button>
+      </div>
+      <div class="endings-meta tabular hidden" id="endingsMeta"></div>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY -->
+  <div id="howToScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">How To Survive</h2>
+        <button class="btn btn-sm" id="btnCloseHowTo">Exit To Title</button>
+      </div>
+      <div class="panel-body">
+        <p>You awake inside abandoned Blackthorn Asylum at 3:17 AM. Something tall stalks the darkened corridors. It hunts by sight, sound, and light.</p>
+        <div class="controls-grid">
+          <div class="control-item"><span>Move</span><span class="key-label">W A S D</span></div>
+          <div class="control-item"><span>Look</span><span class="key-label">Mouse / ← →</span></div>
+          <div class="control-item"><span>Run</span><span class="key-label">Shift</span></div>
+          <div class="control-item"><span>Crouch (Quiet)</span><span class="key-label">Ctrl / C</span></div>
+          <div class="control-item"><span>Interact / Hide</span><span class="key-label">E</span></div>
+          <div class="control-item"><span>Flashlight</span><span class="key-label">F</span></div>
+          <div class="control-item"><span>Inventory & Notes</span><span class="key-label">Tab</span></div>
+          <div class="control-item"><span>Hospital Map</span><span class="key-label">M</span></div>
+          <div class="control-item"><span>Pause / Release Mouse</span><span class="key-label">Escape</span></div>
+          <div class="control-item"><span>Quick Restart</span><span class="key-label">R</span></div>
+        </div>
+        <p>Running and shining your beam attract attention. Shut doors behind you, cut your light when footsteps draw near, and slip into metal lockers before you are seen. Collect notes to deduce the four-digit exit code.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settingsScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Settings</h2>
+        <button class="btn btn-sm" id="btnCloseSettings">Back</button>
+      </div>
+      <div class="panel-body">
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Master Volume</span>
+            <span class="setting-desc">Controls overall synthesized audio level</span>
+          </div>
+          <div class="setting-control">
+            <input type="range" id="setVolume" min="0" max="100" step="5" />
+            <span class="tabular" id="valVolume">75%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Horror Intensity</span>
+            <span class="setting-desc">Frequency & presence of ambient psychological audio</span>
+          </div>
+          <div class="setting-control">
+            <input type="range" id="setHorror" min="20" max="100" step="10" />
+            <span class="tabular" id="valHorror">80%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Mouse Sensitivity</span>
+            <span class="setting-desc">Adjusts horizontal look speed</span>
+          </div>
+          <div class="setting-control">
+            <input type="range" id="setSensitivity" min="30" max="200" step="10" />
+            <span class="tabular" id="valSensitivity">100%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Field of View</span>
+            <span class="setting-desc">Horizontal camera perspective angle</span>
+          </div>
+          <div class="setting-control">
+            <input type="range" id="setFov" min="60" max="90" step="2" />
+            <span class="tabular" id="valFov">72°</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Graphics Quality</span>
+            <span class="setting-desc">Raycasting render resolution & atmospheric particles</span>
+          </div>
+          <div class="setting-control">
+            <select id="setQuality">
+              <option value="low">Low (Fastest)</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Jumpscare Intensity</span>
+            <span class="setting-desc">Reduces visual flash and sudden audio spikes</span>
+          </div>
+          <div class="setting-control">
+            <select id="setJumpscare">
+              <option value="full">Full</option>
+              <option value="reduced">Reduced</option>
+              <option value="minimal">Minimal</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Head Bobbing</span>
+            <span class="setting-desc">Subtle camera sway while walking and running</span>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-sm" id="btnToggleBob">On</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Motion Reduction</span>
+            <span class="setting-desc">Disables screen shake, distortion, and head bob</span>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-sm" id="btnToggleMotion">Off</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="setting-name">Fullscreen Mode</span>
+            <span class="setting-desc">Toggle borderless fullscreen display</span>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-sm" id="btnFullscreen">Toggle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAUSE MENU -->
+  <div id="pauseScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel panel-narrow" style="text-align: center;">
+      <div class="panel-header">
+        <h2 class="panel-title">Paused</h2>
+        <span class="tabular" style="font-size: 12px; color: var(--text-muted);">03:17 AM</span>
+      </div>
+      <div class="menu-nav" style="width: 100%; margin: 6px 0;">
+        <button class="btn btn-primary" id="btnResume">Resume</button>
+        <button class="btn" id="btnPauseHowTo">Controls</button>
+        <button class="btn" id="btnPauseSettings">Settings</button>
+        <button class="btn btn-danger" id="btnPauseExit">Exit To Title</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTORY -->
+  <div id="inventoryScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Inventory & Records</h2>
+        <button class="btn btn-sm" id="btnCloseInventory">Close [Tab]</button>
+      </div>
+      <div class="inv-layout">
+        <div>
+          <div class="inv-section-title">Carried Items</div>
+          <div class="inv-list" id="invItemsList"></div>
+          <div class="inv-section-title" style="margin-top: 18px;">Collected Notes</div>
+          <div class="inv-list" id="invNotesList"></div>
+        </div>
+        <div class="inv-detail-box" id="invDetailBox">
+          <div>
+            <div class="inv-section-title" id="invDetailTitle">Inspect</div>
+            <div class="note-paper" id="invDetailText">Select an item or note to inspect.</div>
+          </div>
+          <div id="invActionArea"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP OVERLAY -->
+  <div id="mapScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel" style="max-width: 580px;">
+      <div class="panel-header">
+        <h2 class="panel-title">Blackthorn Asylum — Floor Plan</h2>
+        <button class="btn btn-sm" id="btnCloseMap">Close [M]</button>
+      </div>
+      <canvas id="mapCanvas" width="480" height="480"></canvas>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+        <span>You: Amber Arrow · Locked Doors: Rust · Exit: South Gate</span>
+        <span id="mapObjectiveShort"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTE READER -->
+  <div id="noteScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel" style="max-width: 560px;">
+      <div class="panel-header">
+        <h2 class="panel-title" id="noteReaderTitle">Recovered Note</h2>
+        <button class="btn btn-sm" id="btnCloseNote">Put Away [E / Esc]</button>
+      </div>
+      <div class="note-paper" id="noteReaderBody"></div>
+    </div>
+  </div>
+
+  <!-- EXIT KEYPAD -->
+  <div id="keypadScreen" class="screen-overlay modal-backdrop hidden">
+    <div class="panel panel-narrow">
+      <div class="panel-header">
+        <h2 class="panel-title">Main Gate Override</h2>
+        <button class="btn btn-sm" id="btnCloseKeypad">Cancel</button>
+      </div>
+      <div style="font-size: 13px; color: var(--text-muted);">
+        Enter the four-digit exit cipher. Check collected notes in Inventory [Tab].
+      </div>
+      <div class="keypad-display" id="keypadDisplay">_ _ _ _</div>
+      <div id="keypadStatus" style="font-size: 12px; min-height: 18px; text-align: center; color: var(--accent-blood-bright);"></div>
+      <div class="keypad-grid" id="keypadGrid">
+        <button class="keypad-btn" data-k="1">1</button>
+        <button class="keypad-btn" data-k="2">2</button>
+        <button class="keypad-btn" data-k="3">3</button>
+        <button class="keypad-btn" data-k="4">4</button>
+        <button class="keypad-btn" data-k="5">5</button>
+        <button class="keypad-btn" data-k="6">6</button>
+        <button class="keypad-btn" data-k="7">7</button>
+        <button class="keypad-btn" data-k="8">8</button>
+        <button class="keypad-btn" data-k="9">9</button>
+        <button class="keypad-btn" data-k="CLR">CLR</button>
+        <button class="keypad-btn" data-k="0">0</button>
+        <button class="keypad-btn" data-k="ENT">ENT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEATH SCREEN -->
+  <div id="deathScreen" class="screen-overlay hidden">
+    <div class="menu-container">
+      <h1 class="death-title">IT FOUND YOU.</h1>
+      <p class="death-sub">The corridor falls silent again. The clock still reads 3:17 AM.</p>
+      <div class="menu-nav">
+        <button class="btn btn-danger" id="btnDeathRetry">Retry [R]</button>
+        <button class="btn" id="btnDeathCheckpoint">Load Checkpoint</button>
+        <button class="btn" id="btnDeathMenu">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENDING SCREEN -->
+  <div id="endingScreen" class="screen-overlay hidden">
+    <div class="ending-box">
+      <div class="menu-kicker" id="endingKicker">Ending Reached</div>
+      <h1 class="ending-title" id="endingTitle">THE NIGHT AIR</h1>
+      <p class="ending-text" id="endingBody"></p>
+      <div class="menu-nav" style="margin-top: 12px;">
+        <button class="btn btn-primary" id="btnEndingMenu">Main Menu</button>
+        <button class="btn" id="btnEndingReplay">New Game</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =========================================================
+         1. SAFE STORAGE & SETTINGS
+         ========================================================= */
+      const STORAGE_KEYS = {
+        settings: 'the_hollow_settings_v1',
+        save: 'the_hollow_save_v1',
+        endings: 'the_hollow_endings_v1'
+      };
+
+      const safeStorage = {
+        get(key) {
+          try {
+            const raw = window.localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        },
+        set(key, value) {
+          try {
+            window.localStorage.setItem(key, JSON.stringify(value));
+            return true;
+          } catch (e) {
+            return false;
+          }
+        },
+        remove(key) {
+          try {
+            window.localStorage.removeItem(key);
+          } catch (e) {}
+        }
+      };
+
+      const defaultSettings = {
+        masterVolume: 0.75,
+        horrorIntensity: 0.80,
+        sensitivity: 1.0,
+        fov: 72,
+        graphicsQuality: 'high',
+        jumpscareIntensity: 'full',
+        headBob: true,
+        motionReduction: false
+      };
+
+      const settings = Object.assign({}, defaultSettings, safeStorage.get(STORAGE_KEYS.settings) || {});
+      let unlockedEndings = safeStorage.get(STORAGE_KEYS.endings) || { escape: false, secret: false };
+
+      function saveSettings() {
+        safeStorage.set(STORAGE_KEYS.settings, settings);
+      }
+
+      /* =========================================================
+         2. MAP DEFINITION (24x24 BLACKTHORN ASYLUM)
+         ========================================================= */
+      // 0: Floor
+      // 1: Plaster Ward Wall
+      // 2: Tiled Hallway Wall
+      // 3: Clawed Isolation Wall
+      // 4: Boiler Concrete Wall
+      // 5: Records Wood/Archive Wall
+      // 6: Asylum Door
+      // 7: Main Exit Double Gate
+      // 8: Metal Hiding Locker (Flush in wall)
+      const RAW_MAP = [
+        '448444222228222222558555',
+        '400004002000000200500005',
+        '400004002000000200500005',
+        '400006006000000600600005',
+        '400004002000000200500005',
+        '444444002222222200555555',
+        '333333000000000000555555',
+        '300003000000000000500005',
+        '300006002226222200600005',
+        '300003002000000200500005',
+        '338333002000000200558555',
+        '111111002000000200222222',
+        '100001006000000600200002',
+        '100001002000000200200002',
+        '100006002000000200600002',
+        '100001002222622200200002',
+        '118111000000000000228222',
+        '111111000000000000111111',
+        '100001000000000000100001',
+        '100001000000000000100001',
+        '100006000000000000600001',
+        '100001000000000000100001',
+        '111111222227722222118111',
+        '111111111110011111111111'
+      ];
+
+      const MAP_W = 24;
+      const MAP_H = 24;
+
+      const ROOM_NAMES = [
+        { name: 'Boiler Room', x1: 1, y1: 1, x2: 4, y2: 4 },
+        { name: 'North Dayroom', x1: 9, y1: 1, x2: 14, y2: 4 },
+        { name: 'Records Dept.', x1: 19, y1: 1, x2: 22, y2: 4 },
+        { name: 'Ward 103 (Isolation)', x1: 1, y1: 7, x2: 4, y2: 9 },
+        { name: 'Ward 0 (Archive)', x1: 19, y1: 7, x2: 22, y2: 9 },
+        { name: 'Nurse Station', x1: 9, y1: 9, x2: 14, y2: 14 },
+        { name: 'Ward 102', x1: 1, y1: 12, x2: 4, y2: 15 },
+        { name: 'East Morgue', x1: 19, y1: 12, x2: 22, y2: 15 },
+        { name: 'Ward 101', x1: 1, y1: 18, x2: 4, y2: 21 },
+        { name: 'Maintenance Storage', x1: 19, y1: 18, x2: 22, y2: 21 },
+        { name: 'Main Entrance Lobby', x1: 6, y1: 16, x2: 17, y2: 21 },
+        { name: 'West Corridor', x1: 6, y1: 1, x2: 7, y2: 15 },
+        { name: 'East Corridor', x1: 16, y1: 1, x2: 17, y2: 15 },
+        { name: 'North Corridor', x1: 8, y1: 6, x2: 15, y2: 7 }
+      ];
+
+      function getRoomName(px, py) {
+        const tx = Math.floor(px);
+        const ty = Math.floor(py);
+        for (let i = 0; i < ROOM_NAMES.length; i++) {
+          const r = ROOM_NAMES[i];
+          if (tx >= r.x1 && tx <= r.x2 && ty >= r.y1 && ty <= r.y2) return r.name;
+        }
+        return 'Asylum Corridor';
+      }
+
+      /* =========================================================
+         3. AUDIO ENGINE (100% PROCEDURAL WEB AUDIO API)
+         ========================================================= */
+      class AudioEngine {
+        constructor() {
+          this.ctx = null;
+          this.master = null;
+          this.comp = null;
+          this.noiseBuf = null;
+          this.droneGain = null;
+          this.windGain = null;
+          this.humGain = null;
+          this.chaseGain = null;
+          this.breathGain = null;
+          this.breathPan = null;
+          this.unlocked = false;
+          this.nextHeartbeatAt = 0;
+        }
+
+        unlock() {
+          if (this.unlocked) {
+            if (this.ctx && this.ctx.state === 'suspended') {
+              this.ctx.resume().catch(() => {});
+            }
+            return;
+          }
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          try {
+            this.ctx = new AudioCtx();
+            this.comp = this.ctx.createDynamicsCompressor();
+            this.comp.threshold.value = -16;
+            this.comp.knee.value = 18;
+            this.comp.ratio.value = 8;
+            this.comp.attack.value = 0.005;
+            this.comp.release.value = 0.2;
+
+            this.master = this.ctx.createGain();
+            this.master.gain.value = settings.masterVolume;
+
+            this.comp.connect(this.master);
+            this.master.connect(this.ctx.destination);
+
+            this._buildNoiseBuffer();
+            this._startContinuousLayers();
+            this.unlocked = true;
+          } catch (e) {}
+        }
+
+        _buildNoiseBuffer() {
+          const sr = this.ctx.sampleRate;
+          const len = sr * 2;
+          this.noiseBuf = this.ctx.createBuffer(1, len, sr);
+          const data = this.noiseBuf.getChannelData(0);
+          let b0 = 0, b1 = 0, b2 = 0;
+          for (let i = 0; i < len; i++) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.997 * b0 + white * 0.029;
+            b1 = 0.985 * b1 + white * 0.032;
+            b2 = 0.950 * b2 + white * 0.048;
+            data[i] = (b0 + b1 + b2 + white * 0.14) * 0.25;
+          }
+        }
+
+        _startContinuousLayers() {
+          const ctx = this.ctx;
+
+          // Sub-bass atmospheric drone
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const droneFilter = ctx.createBiquadFilter();
+          this.droneGain = ctx.createGain();
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
+          osc1.frequency.value = 41.0;
+          osc2.frequency.value = 42.4;
+          droneFilter.type = 'lowpass';
+          droneFilter.frequency.value = 115;
+          this.droneGain.gain.value = 0.12;
+          osc1.connect(droneFilter);
+          osc2.connect(droneFilter);
+          droneFilter.connect(this.droneGain);
+          this.droneGain.connect(this.comp);
+          osc1.start();
+          osc2.start();
+
+          // Wind through broken windows
+          const windSrc = ctx.createBufferSource();
+          windSrc.buffer = this.noiseBuf;
+          windSrc.loop = true;
+          const windFilter = ctx.createBiquadFilter();
+          windFilter.type = 'bandpass';
+          windFilter.frequency.value = 340;
+          windFilter.Q.value = 2.4;
+          const windLfo = ctx.createOscillator();
+          const windLfoGain = ctx.createGain();
+          windLfo.frequency.value = 0.11;
+          windLfoGain.gain.value = 130;
+          windLfo.connect(windLfoGain);
+          windLfoGain.connect(windFilter.frequency);
+          this.windGain = ctx.createGain();
+          this.windGain.gain.value = 0.06;
+          windSrc.connect(windFilter);
+          windFilter.connect(this.windGain);
+          this.windGain.connect(this.comp);
+          windSrc.start();
+          windLfo.start();
+
+          // Electrical / fluorescent hum
+          const humOsc = ctx.createOscillator();
+          humOsc.type = 'sawtooth';
+          humOsc.frequency.value = 120;
+          const humFilter = ctx.createBiquadFilter();
+          humFilter.type = 'bandpass';
+          humFilter.frequency.value = 180;
+          humFilter.Q.value = 4.0;
+          this.humGain = ctx.createGain();
+          this.humGain.gain.value = 0.015;
+          humOsc.connect(humFilter);
+          humFilter.connect(this.humGain);
+          this.humGain.connect(this.comp);
+          humOsc.start();
+
+          // Chase tension drone
+          const chaseOsc = ctx.createOscillator();
+          chaseOsc.type = 'sawtooth';
+          chaseOsc.frequency.value = 73.4;
+          const chaseOsc2 = ctx.createOscillator();
+          chaseOsc2.type = 'sawtooth';
+          chaseOsc2.frequency.value = 77.8;
+          const chaseFilter = ctx.createBiquadFilter();
+          chaseFilter.type = 'lowpass';
+          chaseFilter.frequency.value = 420;
+          this.chaseGain = ctx.createGain();
+          this.chaseGain.gain.value = 0.0;
+          chaseOsc.connect(chaseFilter);
+          chaseOsc2.connect(chaseFilter);
+          chaseFilter.connect(this.chaseGain);
+          this.chaseGain.connect(this.comp);
+          chaseOsc.start();
+          chaseOsc2.start();
+
+          // Enemy breathing layer
+          const brSrc = ctx.createBufferSource();
+          brSrc.buffer = this.noiseBuf;
+          brSrc.loop = true;
+          const brFilter = ctx.createBiquadFilter();
+          brFilter.type = 'bandpass';
+          brFilter.frequency.value = 540;
+          brFilter.Q.value = 3.2;
+          this.breathGain = ctx.createGain();
+          this.breathGain.gain.value = 0.0;
+          this.breathPan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+          brSrc.connect(brFilter);
+          brFilter.connect(this.breathGain);
+          if (this.breathPan) {
+            this.breathGain.connect(this.breathPan);
+            this.breathPan.connect(this.comp);
+          } else {
+            this.breathGain.connect(this.comp);
+          }
+          brSrc.start();
+        }
+
+        updateContinuous(dt, params) {
+          if (!this.unlocked || !this.ctx) return;
+          const t = this.ctx.currentTime;
+          this.master.gain.setTargetAtTime(params.muted ? 0 : settings.masterVolume, t, 0.08);
+          const hi = settings.horrorIntensity;
+
+          if (this.droneGain) {
+            const baseDrone = (0.09 + params.tension * 0.14) * hi;
+            this.droneGain.gain.setTargetAtTime(baseDrone, t, 0.25);
+          }
+          if (this.windGain) {
+            this.windGain.gain.setTargetAtTime((0.04 + params.nearWindow * 0.09) * hi, t, 0.3);
+          }
+          if (this.humGain) {
+            const humLevel = params.powerOut ? 0.0 : (params.powerRestored ? 0.035 : 0.014) * (params.flicker ? 1.8 : 1.0);
+            this.humGain.gain.setTargetAtTime(humLevel, t, 0.06);
+          }
+          if (this.chaseGain) {
+            const cLvl = params.chasing ? 0.16 * hi : 0.0;
+            this.chaseGain.gain.setTargetAtTime(cLvl, t, 0.2);
+          }
+          if (this.breathGain) {
+            const bBase = params.enemyProximity > 0.08 ? Math.sin(params.time * 2.6) * 0.5 + 0.5 : 0;
+            const bLvl = params.enemyProximity * 0.16 * bBase * hi;
+            this.breathGain.gain.setTargetAtTime(bLvl, t, 0.08);
+            if (this.breathPan) {
+              this.breathPan.pan.setTargetAtTime(Math.max(-0.9, Math.min(0.9, params.enemyPan)), t, 0.08);
+            }
+          }
+
+          // Heartbeat during danger or hiding near enemy
+          const heartStrength = Math.max(params.chasing ? 1.0 : 0, params.enemyProximity * 0.95);
+          if (heartStrength > 0.22 && params.time >= this.nextHeartbeatAt) {
+            const bpm = 64 + heartStrength * 82;
+            this.nextHeartbeatAt = params.time + 60 / bpm;
+            this.playHeartbeat(heartStrength * hi);
+          }
+        }
+
+        _connectWithPan(node, pan) {
+          if (this.ctx.createStereoPanner && typeof pan === 'number') {
+            const p = this.ctx.createStereoPanner();
+            p.pan.value = Math.max(-0.95, Math.min(0.95, pan));
+            node.connect(p);
+            p.connect(this.comp);
+          } else {
+            node.connect(this.comp);
+          }
+        }
+
+        playHeartbeat(strength) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          [0, 0.16].forEach((offset, idx) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(idx === 0 ? 64 : 52, now + offset);
+            osc.frequency.exponentialRampToValueAtTime(28, now + offset + 0.14);
+            g.gain.setValueAtTime(0.001, now + offset);
+            g.gain.linearRampToValueAtTime((idx === 0 ? 0.26 : 0.18) * strength, now + offset + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+            osc.connect(g);
+            g.connect(this.comp);
+            osc.start(now + offset);
+            osc.stop(now + offset + 0.2);
+          });
+        }
+
+        playFootstep(type, pan = 0, distScale = 1) {
+          if (!this.unlocked || !this.noiseBuf) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const src = ctx.createBufferSource();
+          src.buffer = this.noiseBuf;
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = type === 'run' ? 540 : (type === 'enemy' ? 320 : 380);
+          const g = ctx.createGain();
+          const amp = (type === 'run' ? 0.24 : type === 'crouch' ? 0.06 : type === 'enemy' ? 0.30 : 0.13) * distScale;
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(amp, now + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+          src.connect(filter);
+          filter.connect(g);
+          this._connectWithPan(g, pan);
+          src.start(now, Math.random() * 1.2, 0.14);
+        }
+
+        playFlashlightClick(on) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(on ? 1850 : 1250, now);
+          osc.frequency.exponentialRampToValueAtTime(on ? 950 : 620, now + 0.035);
+          g.gain.setValueAtTime(0.14, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.connect(g);
+          g.connect(this.comp);
+          osc.start(now);
+          osc.stop(now + 0.045);
+        }
+
+        playDoor(open, pan = 0, distScale = 1) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          const flt = ctx.createBiquadFilter();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(open ? 112 : 148, now);
+          osc.frequency.linearRampToValueAtTime(open ? 156 : 86, now + 0.42);
+          flt.type = 'bandpass';
+          flt.frequency.value = 320;
+          flt.Q.value = 5.0;
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.14 * distScale, now + 0.06);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+          osc.connect(flt);
+          flt.connect(g);
+          this._connectWithPan(g, pan);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        }
+
+        playRattle(pan = 0) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          for (let i = 0; i < 4; i++) {
+            const t = ctx.currentTime + i * 0.09;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(160 + (i % 2) * 45, t);
+            osc.frequency.exponentialRampToValueAtTime(60, t + 0.06);
+            g.gain.setValueAtTime(0.18 * settings.horrorIntensity, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+            osc.connect(g);
+            this._connectWithPan(g, pan);
+            osc.start(t);
+            osc.stop(t + 0.08);
+          }
+        }
+
+        playPickup() {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(760, now + 0.09);
+          g.gain.setValueAtTime(0.11, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.connect(g);
+          g.connect(this.comp);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        }
+
+        playPaper() {
+          if (!this.unlocked || !this.noiseBuf) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const src = ctx.createBufferSource();
+          src.buffer = this.noiseBuf;
+          const flt = ctx.createBiquadFilter();
+          flt.type = 'highpass';
+          flt.frequency.value = 1800;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.12, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          src.connect(flt);
+          flt.connect(g);
+          g.connect(this.comp);
+          src.start(now, 0.2, 0.24);
+        }
+
+        playCreak(pan = 0) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const mod = ctx.createOscillator();
+          const modGain = ctx.createGain();
+          const flt = ctx.createBiquadFilter();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.linearRampToValueAtTime(145, now + 1.1);
+          mod.frequency.value = 24;
+          modGain.gain.value = 40;
+          mod.connect(modGain);
+          modGain.connect(osc.frequency);
+          flt.type = 'bandpass';
+          flt.frequency.value = 480;
+          flt.Q.value = 7;
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.12 * settings.horrorIntensity, now + 0.18);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+          osc.connect(flt);
+          flt.connect(g);
+          this._connectWithPan(g, pan);
+          osc.start(now);
+          mod.start(now);
+          osc.stop(now + 1.3);
+          mod.stop(now + 1.3);
+        }
+
+        playWhisper(pan = 0) {
+          if (!this.unlocked || !this.noiseBuf) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          for (let i = 0; i < 3; i++) {
+            const start = now + i * 0.42;
+            const src = ctx.createBufferSource();
+            src.buffer = this.noiseBuf;
+            const flt = ctx.createBiquadFilter();
+            flt.type = 'bandpass';
+            flt.frequency.setValueAtTime(950 + i * 260, start);
+            flt.frequency.linearRampToValueAtTime(1450 - i * 180, start + 0.32);
+            flt.Q.value = 8.5;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.001, start);
+            g.gain.linearRampToValueAtTime(0.14 * settings.horrorIntensity, start + 0.08);
+            g.gain.exponentialRampToValueAtTime(0.001, start + 0.38);
+            src.connect(flt);
+            flt.connect(g);
+            this._connectWithPan(g, pan);
+            src.start(start, Math.random(), 0.4);
+          }
+        }
+
+        playDistantScream(pan = 0) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const flt = ctx.createBiquadFilter();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc2.type = 'triangle';
+          osc.frequency.setValueAtTime(620, now);
+          osc.frequency.exponentialRampToValueAtTime(290, now + 1.4);
+          osc2.frequency.setValueAtTime(635, now);
+          osc2.frequency.exponentialRampToValueAtTime(275, now + 1.4);
+          flt.type = 'bandpass';
+          flt.frequency.value = 780;
+          flt.Q.value = 3.5;
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.11 * settings.horrorIntensity, now + 0.16);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 1.55);
+          osc.connect(flt);
+          osc2.connect(flt);
+          flt.connect(g);
+          this._connectWithPan(g, pan);
+          osc.start(now);
+          osc2.start(now);
+          osc.stop(now + 1.6);
+          osc2.stop(now + 1.6);
+        }
+
+        playImpact(pan = 0) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(98, now);
+          osc.frequency.exponentialRampToValueAtTime(26, now + 0.55);
+          g.gain.setValueAtTime(0.28 * settings.horrorIntensity, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          osc.connect(g);
+          this._connectWithPan(g, pan);
+          osc.start(now);
+          osc.stop(now + 0.62);
+        }
+
+        playPowerClunk(on) {
+          if (!this.unlocked) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(on ? 58 : 130, now);
+          osc.frequency.exponentialRampToValueAtTime(on ? 140 : 34, now + 0.35);
+          g.gain.setValueAtTime(0.24, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.connect(g);
+          g.connect(this.comp);
+          osc.start(now);
+          osc.stop(now + 0.42);
+        }
+
+        playScare(isFatal = false) {
+          if (!this.unlocked) return;
+          const scale = settings.jumpscareIntensity === 'minimal' ? 0.28 :
+                        settings.jumpscareIntensity === 'reduced' ? 0.55 : 0.9;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const freqs = isFatal ? [142, 211, 419, 643] : [185, 293, 520];
+          freqs.forEach((f, idx) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = idx % 2 === 0 ? 'sawtooth' : 'square';
+            osc.frequency.setValueAtTime(f, now);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.68, now + (isFatal ? 1.1 : 0.55));
+            g.gain.setValueAtTime(0.001, now);
+            g.gain.linearRampToValueAtTime((0.14 / freqs.length) * scale, now + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + (isFatal ? 1.25 : 0.6));
+            osc.connect(g);
+            g.connect(this.comp);
+            osc.start(now);
+            osc.stop(now + (isFatal ? 1.3 : 0.65));
+          });
+        }
+      }
+
+      const audio = new AudioEngine();
+
+      /* =========================================================
+         4. PROCEDURAL TEXTURES & SPRITES (CACHED ONCE)
+         ========================================================= */
+      const TEX_SIZE = 64;
+      const IS_LE = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+
+      function packRGBA(r, g, b, a = 255) {
+        if (IS_LE) {
+          return ((a & 255) << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255);
+        }
+        return ((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | (a & 255);
+      }
+
+      function hash2(x, y, seed) {
+        let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041);
+        n = (n ^ (n >>> 13)) * 1274126177;
+        return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+      }
+
+      function buildWallTextures() {
+        const list = {};
+
+        // Helper to create 64x64 texture
+        const makeTex = (fn) => {
+          const buf = new Uint32Array(TEX_SIZE * TEX_SIZE);
+          for (let y = 0; y < TEX_SIZE; y++) {
+            for (let x = 0; x < TEX_SIZE; x++) {
+              const [r, g, b] = fn(x, y);
+              buf[y * TEX_SIZE + x] = packRGBA(
+                Math.max(0, Math.min(255, r | 0)),
+                Math.max(0, Math.min(255, g | 0)),
+                Math.max(0, Math.min(255, b | 0)),
+                255
+              );
+            }
+          }
+          return buf;
+        };
+
+        // 1: Dirty plaster ward wall
+        list[1] = makeTex((x, y) => {
+          const n = hash2(x, y, 1) * 18 - 9;
+          const damp = (y > 46 ? (y - 46) * 1.4 : 0) + (hash2(x >> 2, y >> 2, 11) * 14);
+          let r = 82 + n - damp * 0.6;
+          let g = 86 + n - damp * 0.5;
+          let b = 80 + n - damp * 0.6;
+          // hairline crack
+          if (Math.abs(x - 22 - Math.sin(y * 0.22) * 3) < 0.7 && y > 10 && y < 52) {
+            r *= 0.45; g *= 0.45; b *= 0.45;
+          }
+          // baseboard
+          if (y > 57) { r *= 0.55; g *= 0.55; b *= 0.52; }
+          return [r, g, b];
+        });
+
+        // 2: Sickly green tiled hospital corridor wall
+        list[2] = makeTex((x, y) => {
+          const n = hash2(x, y, 2) * 14 - 7;
+          if (y >= 34) {
+            const grout = (x % 16 === 0 || y % 10 === 4);
+            const tileVar = hash2(x >> 4, (y - 4) / 10 | 0, 22) * 12;
+            if (grout) return [36, 40, 38];
+            const grime = y > 54 ? (y - 54) * 2.2 : 0;
+            return [54 + tileVar + n - grime, 72 + tileVar + n - grime, 62 + tileVar + n - grime];
+          }
+          if (y >= 31 && y < 34) return [42, 48, 45];
+          const stain = hash2(x >> 3, y >> 3, 29) * 18;
+          return [80 + n - stain * 0.5, 84 + n - stain * 0.4, 78 + n - stain * 0.5];
+        });
+
+        // 3: Clawed isolation wall
+        list[3] = makeTex((x, y) => {
+          const n = hash2(x, y, 3) * 16 - 8;
+          let r = 74 + n, g = 73 + n, b = 70 + n;
+          // Diagonal desperate scratches
+          for (let s = 0; s < 4; s++) {
+            const dx = x - (16 + s * 6);
+            const dy = y - 22;
+            if (dy > 0 && dy < 24 && Math.abs(dx - dy * 0.35) < 0.85) {
+              r = 34; g = 24; b = 24;
+            }
+          }
+          if (y > 56) { r *= 0.6; g *= 0.6; b *= 0.6; }
+          return [r, g, b];
+        });
+
+        // 4: Boiler concrete & rusted pipes
+        list[4] = makeTex((x, y) => {
+          const n = hash2(x, y, 4) * 20 - 10;
+          let r = 64 + n, g = 66 + n, b = 68 + n;
+          if (y >= 10 && y <= 14) {
+            const rust = hash2(x, y, 44) * 25;
+            r = 76 + rust; g = 50 + rust * 0.4; b = 42;
+          }
+          if (x % 32 === 0) { r *= 0.7; g *= 0.7; b *= 0.7; }
+          return [r, g, b];
+        });
+
+        // 5: Records wood paneling
+        list[5] = makeTex((x, y) => {
+          const grain = Math.sin(y * 0.5 + hash2(x >> 2, y, 5) * 2) * 8;
+          const plank = x % 16 === 0 ? -18 : 0;
+          let r = 68 + grain + plank;
+          let g = 52 + grain * 0.8 + plank;
+          let b = 42 + grain * 0.6 + plank;
+          if (y > 26 && y < 30) { r *= 0.65; g *= 0.65; b *= 0.65; }
+          return [r, g, b];
+        });
+
+        // 6: Rusted metal asylum door with small wire glass
+        list[6] = makeTex((x, y) => {
+          const n = hash2(x, y, 6) * 10 - 5;
+          if (x < 4 || x > 59 || y < 3) return [32, 34, 34];
+          // Small upper window
+          if (x >= 22 && x <= 41 && y >= 12 && y <= 26) {
+            if (x === 22 || x === 41 || y === 12 || y === 26) return [24, 26, 26];
+            if ((x + y) % 6 === 0 || (x - y + 64) % 6 === 0) return [30, 34, 34];
+            return [22, 32, 34];
+          }
+          // Rusted handle
+          if (x >= 50 && x <= 55 && y >= 33 && y <= 37) return [122, 86, 54];
+          const rust = hash2(x >> 2, y >> 2, 66) > 0.74 ? 18 : 0;
+          return [52 + n + rust, 60 + n + rust * 0.4, 56 + n];
+        });
+
+        // 7: Main Exit Heavy Double Gate
+        list[7] = makeTex((x, y) => {
+          const n = hash2(x, y, 7) * 10 - 5;
+          if (x === 31 || x === 32 || x < 3 || x > 60) return [22, 24, 24];
+          if (y >= 28 && y <= 34) return [105, 42, 36]; // warning bar
+          if (x >= 22 && x <= 41 && y >= 10 && y <= 24) {
+            if (x % 4 === 0) return [24, 26, 28];
+            return [18, 28, 36];
+          }
+          return [46 + n, 50 + n, 54 + n];
+        });
+
+        // 8: Metal Hiding Locker flush in wall
+        list[8] = makeTex((x, y) => {
+          const n = hash2(x, y, 8) * 8 - 4;
+          if (x < 8 || x > 55) return [48 + n, 52 + n, 50 + n]; // wall surround
+          if (x === 8 || x === 55 || x === 31 || x === 32 || y < 5 || y > 59) return [24, 28, 28];
+          // Ventilation slits (top & bottom)
+          if ((y >= 11 && y <= 18 && y % 2 === 0 && x >= 14 && x <= 26) ||
+              (y >= 11 && y <= 18 && y % 2 === 0 && x >= 37 && x <= 49)) {
+            return [8, 10, 10];
+          }
+          // Handle
+          if (x >= 27 && x <= 29 && y >= 31 && y <= 37) return [110, 90, 62];
+          return [48 + n, 56 + n, 54 + n];
+        });
+
+        // Floor: Cracked linoleum tiles
+        list.floor = makeTex((x, y) => {
+          const n = hash2(x, y, 9) * 10 - 5;
+          const checker = ((x >> 4) + (y >> 4)) & 1;
+          const seam = (x % 16 === 0 || y % 16 === 0) ? -10 : 0;
+          const base = checker ? 46 : 36;
+          const stain = hash2(x >> 3, y >> 3, 91) > 0.8 ? -10 : 0;
+          return [base + n + seam + stain, base + 3 + n + seam + stain, base + n + seam + stain];
+        });
+
+        // Ceiling: Water-stained acoustic ceiling panels
+        list.ceil = makeTex((x, y) => {
+          const n = hash2(x, y, 10) * 10 - 5;
+          const grid = (x % 32 === 0 || y % 32 === 0) ? -14 : 0;
+          const stain = hash2(x >> 3, y >> 3, 101) > 0.78 ? -9 : 0;
+          return [44 + n + grid + stain, 46 + n + grid + stain, 44 + n + grid + stain];
+        });
+
+        return list;
+      }
+
+      // Draw crisp 64x64 procedural sprite offscreen and extract pixel buffer
+      function rasterizeSprite(drawFn, size = 64) {
+        const c = document.createElement('canvas');
+        c.width = size;
+        c.height = size;
+        const g = c.getContext('2d');
+        g.clearRect(0, 0, size, size);
+        drawFn(g, size);
+        const img = g.getImageData(0, 0, size, size).data;
+        const buf = new Uint32Array(size * size);
+        for (let i = 0; i < size * size; i++) {
+          const idx = i * 4;
+          const a = img[idx + 3];
+          if (a < 28) {
+            buf[i] = 0;
+          } else {
+            buf[i] = packRGBA(img[idx], img[idx + 1], img[idx + 2], 255);
+          }
+        }
+        return { size, buf };
+      }
+
+      function buildSprites() {
+        const s = {};
+
+        // The Watcher (3 terrifying gaunt humanoid variants: idle, head-tilt, lunge)
+        const drawWatcher = (tilt, lunge) => rasterizeSprite((g, sz) => {
+          const cx = sz * 0.5;
+          // Gaunt torso & ragged coat silhouette
+          g.fillStyle = '#0e1010';
+          g.beginPath();
+          g.moveTo(cx - 11, sz * 0.24);
+          g.lineTo(cx + 10, sz * 0.22);
+          g.lineTo(cx + 15, sz * 0.68);
+          g.lineTo(cx - 13, sz * 0.68);
+          g.closePath();
+          g.fill();
+
+          // Uneven hunched shoulders
+          g.fillStyle = '#141717';
+          g.beginPath();
+          g.ellipse(cx - 1, sz * 0.26, 15, 7, -0.14, 0, Math.PI * 2);
+          g.fill();
+
+          // Unnaturally long thin limbs
+          g.strokeStyle = '#0c0d0d';
+          g.lineWidth = 4;
+          // Left arm
+          g.beginPath();
+          g.moveTo(cx - 12, sz * 0.26);
+          g.lineTo(cx - (lunge ? 24 : 18), sz * (lunge ? 0.44 : 0.56));
+          g.lineTo(cx - (lunge ? 28 : 16), sz * (lunge ? 0.58 : 0.79));
+          g.stroke();
+          // Right arm
+          g.beginPath();
+          g.moveTo(cx + 11, sz * 0.23);
+          g.lineTo(cx + (lunge ? 24 : 19), sz * (lunge ? 0.40 : 0.54));
+          g.lineTo(cx + (lunge ? 29 : 15), sz * (lunge ? 0.54 : 0.77));
+          g.stroke();
+
+          // Legs
+          g.lineWidth = 4.5;
+          g.beginPath();
+          g.moveTo(cx - 6, sz * 0.64);
+          g.lineTo(cx - 8, sz * 0.96);
+          g.moveTo(cx + 6, sz * 0.64);
+          g.lineTo(cx + 7, sz * 0.96);
+          g.stroke();
+
+          // Long neck & pale indistinct tilted head
+          g.save();
+          g.translate(cx + tilt * 3, sz * 0.14);
+          g.rotate(tilt * 0.28);
+          g.fillStyle = '#8b918a';
+          g.beginPath();
+          g.ellipse(0, 0, 7.5, 10.5, 0, 0, Math.PI * 2);
+          g.fill();
+          // Pale shading
+          g.fillStyle = '#606660';
+          g.beginPath();
+          g.ellipse(1.5, 2, 5.5, 8, 0, 0, Math.PI * 2);
+          g.fill();
+          // Deep hollow dark eyes
+          g.fillStyle = '#050606';
+          g.beginPath();
+          g.ellipse(-2.8, -1.2, 1.9, 2.5, 0, 0, Math.PI * 2);
+          g.ellipse(2.7, -0.8, 1.9, 2.5, 0, 0, Math.PI * 2);
+          g.fill();
+          // Faint unsettling mouth smudge
+          g.fillRect(-1.5, 4.5, 3, 2);
+          g.restore();
+        }, 96);
+
+        s.watcher0 = drawWatcher(0, false);
+        s.watcher1 = drawWatcher(1, false);
+        s.watcher2 = drawWatcher(-0.6, true);
+
+        // Wheelchair
+        s.wheelchair = rasterizeSprite((g) => {
+          g.strokeStyle = '#686e6a';
+          g.lineWidth = 3;
+          g.beginPath();
+          g.arc(24, 47, 11, 0, Math.PI * 2);
+          g.arc(41, 47, 11, 0, Math.PI * 2);
+          g.stroke();
+          g.fillStyle = '#2d3330';
+          g.fillRect(20, 20, 20, 18);
+          g.fillStyle = '#4c524d';
+          g.fillRect(19, 36, 26, 5);
+          g.strokeStyle = '#7e8480';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.moveTo(20, 16); g.lineTo(20, 44);
+          g.moveTo(40, 16); g.lineTo(40, 44);
+          g.stroke();
+        });
+
+        // Empty hospital bed
+        s.bed = rasterizeSprite((g) => {
+          g.fillStyle = '#4b443e';
+          g.fillRect(10, 32, 44, 6);
+          g.fillRect(10, 24, 4, 30);
+          g.fillRect(50, 28, 4, 26);
+          g.fillStyle = '#8b8d84';
+          g.fillRect(13, 30, 38, 9);
+          g.fillStyle = '#5e5a50';
+          g.fillRect(14, 26, 11, 5);
+        });
+
+        // Damaged medical cart / IV stand
+        s.cart = rasterizeSprite((g) => {
+          g.fillStyle = '#58605c';
+          g.fillRect(20, 30, 24, 22);
+          g.fillStyle = '#2b312f';
+          g.fillRect(22, 34, 20, 6);
+          g.fillRect(22, 43, 20, 6);
+          g.strokeStyle = '#7b827d';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.moveTo(32, 10); g.lineTo(32, 30);
+          g.moveTo(26, 12); g.lineTo(38, 12);
+          g.stroke();
+        });
+
+        // Hanging cables (top of sprite)
+        s.cables = rasterizeSprite((g) => {
+          g.strokeStyle = '#1b1d1d';
+          g.lineWidth = 2.5;
+          g.beginPath();
+          g.moveTo(24, 0); g.quadraticCurveTo(28, 18, 22, 34);
+          g.moveTo(38, 0); g.quadraticCurveTo(33, 14, 40, 28);
+          g.stroke();
+          g.fillStyle = '#997a45';
+          g.fillRect(21, 33, 2, 2);
+        });
+
+        // Generator
+        const drawGen = (on) => rasterizeSprite((g) => {
+          g.fillStyle = '#383d39';
+          g.fillRect(10, 20, 44, 36);
+          g.fillStyle = '#242826';
+          g.fillRect(14, 24, 20, 18);
+          g.fillStyle = '#625648';
+          g.fillRect(38, 24, 12, 26);
+          g.fillStyle = on ? '#9ec989' : '#8b3232';
+          g.fillRect(42, 28, 5, 5);
+        });
+        s.generatorOff = drawGen(false);
+        s.generatorOn = drawGen(true);
+
+        // Drawer / Filing Cabinet
+        s.cabinet = rasterizeSprite((g) => {
+          g.fillStyle = '#3c4340';
+          g.fillRect(16, 16, 32, 42);
+          g.fillStyle = '#292e2c';
+          g.fillRect(19, 19, 26, 10);
+          g.fillRect(19, 32, 26, 10);
+          g.fillRect(19, 45, 26, 10);
+          g.fillStyle = '#8b836f';
+          g.fillRect(29, 23, 6, 2);
+          g.fillRect(29, 36, 6, 2);
+          g.fillRect(29, 49, 6, 2);
+        });
+
+        // Radio / Intercom
+        s.radio = rasterizeSprite((g) => {
+          g.fillStyle = '#403b35';
+          g.fillRect(18, 36, 28, 18);
+          g.fillStyle = '#1f1d1b';
+          g.fillRect(21, 39, 14, 12);
+          g.fillStyle = '#8e7c55';
+          g.fillRect(38, 41, 5, 5);
+          g.strokeStyle = '#6d726e';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.moveTo(42, 36); g.lineTo(46, 18);
+          g.stroke();
+        });
+
+        // Pickups (positioned lower in tile so they sit on floors/tables)
+        s.flashlight = rasterizeSprite((g) => {
+          g.fillStyle = '#363b39';
+          g.fillRect(20, 45, 22, 7);
+          g.fillStyle = '#8d8774';
+          g.fillRect(40, 43, 6, 11);
+          g.fillStyle = '#d4c392';
+          g.fillRect(45, 45, 2, 7);
+        });
+
+        s.battery = rasterizeSprite((g) => {
+          g.fillStyle = '#6c7c66';
+          g.fillRect(26, 42, 12, 14);
+          g.fillStyle = '#b4924c';
+          g.fillRect(26, 42, 12, 5);
+          g.fillStyle = '#aeb5b0';
+          g.fillRect(29, 39, 6, 3);
+        });
+
+        s.note = rasterizeSprite((g) => {
+          g.fillStyle = '#c4bba2';
+          g.fillRect(21, 46, 22, 11);
+          g.fillStyle = '#524b3d';
+          g.fillRect(24, 49, 14, 1.5);
+          g.fillRect(24, 52, 10, 1.5);
+        });
+
+        s.key = rasterizeSprite((g) => {
+          g.strokeStyle = '#b88c4a';
+          g.lineWidth = 3;
+          g.beginPath();
+          g.arc(24, 48, 5, 0, Math.PI * 2);
+          g.moveTo(29, 48); g.lineTo(44, 48);
+          g.moveTo(40, 48); g.lineTo(40, 53);
+          g.moveTo(44, 48); g.lineTo(44, 53);
+          g.stroke();
+        });
+
+        s.fuse = rasterizeSprite((g) => {
+          g.fillStyle = '#9e7d4a';
+          g.fillRect(22, 45, 5, 9);
+          g.fillRect(37, 45, 5, 9);
+          g.fillStyle = '#9bb6b8';
+          g.fillRect(27, 46, 10, 7);
+          g.fillStyle = '#d8b768';
+          g.fillRect(28, 49, 8, 1.5);
+        });
+
+        s.card = rasterizeSprite((g) => {
+          g.fillStyle = '#b7c2bc';
+          g.fillRect(20, 44, 24, 13);
+          g.fillStyle = '#364d42';
+          g.fillRect(20, 44, 24, 4);
+          g.fillStyle = '#7a2c2c';
+          g.fillRect(23, 50, 7, 5);
+        });
+
+        s.map = rasterizeSprite((g) => {
+          g.fillStyle = '#aab3a4';
+          g.fillRect(18, 44, 28, 14);
+          g.strokeStyle = '#3b4a42';
+          g.lineWidth = 1.5;
+          g.strokeRect(21, 47, 22, 8);
+        });
+
+        s.keypad = rasterizeSprite((g) => {
+          g.fillStyle = '#2d3332';
+          g.fillRect(24, 26, 16, 22);
+          g.fillStyle = '#536b5c';
+          g.fillRect(27, 29, 10, 5);
+          g.fillStyle = '#8b968e';
+          for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+              g.fillRect(27 + c * 4, 36 + r * 3.5, 2.5, 2.5);
+            }
+          }
+        });
+
+        return s;
+      }
+
+      const WALL_TEX = buildWallTextures();
+      const SPRITE_TEX = buildSprites();
+
+      /* =========================================================
+         5. GAME STATE, OBJECTIVES, NOTES & PUZZLE GENERATION
+         ========================================================= */
+      let state = null;
+      let appMode = 'MENU'; // MENU | PLAYING | PAUSED | INVENTORY | MAP | NOTE | KEYPAD | DEATH | ENDING
+      let subReturnMode = 'MENU';
+
+      function generateExitCode() {
+        const d1 = 2 + Math.floor(Math.random() * 7); // 2..8
+        const d2 = 2 + Math.floor(Math.random() * 7);
+        const d3 = 2 + Math.floor(Math.random() * 7);
+        const d4 = 1 + Math.floor(Math.random() * 8);
+        return `${d1}${d2}${d3}${d4}`;
+      }
+
+      function createFreshRun(savedData = null) {
+        const exitCode = savedData ? savedData.exitCode : generateExitCode();
+        const d1 = Number(exitCode[0]);
+        const d2 = Number(exitCode[1]);
+        const d3 = Number(exitCode[2]);
+        const d4 = Number(exitCode[3]);
+        const a2 = Math.floor(d2 / 2);
+        const b2 = d2 - a2;
+
+        const doors = {};
+        const addDoor = (x, y, locked = 'none', label = 'Door') => {
+          doors[`${x},${y}`] = { x, y, openAmount: 0, targetOpen: 0, locked, label, closeTimer: 0 };
+        };
+        addDoor(5, 3, 'none', 'Boiler Room Door');
+        addDoor(8, 3, 'none', 'Dayroom West Door');
+        addDoor(15, 3, 'none', 'Dayroom East Door');
+        addDoor(18, 3, 'power', 'Records Dept. Electronic Door');
+        addDoor(5, 8, 'none', 'Isolation Ward 103 Door');
+        addDoor(11, 8, 'none', 'Nurse Station North Door');
+        addDoor(18, 8, 'securityCard', 'Director Archive (Ward 0) Door');
+        addDoor(8, 12, 'none', 'Nurse Station West Door');
+        addDoor(15, 12, 'none', 'Nurse Station East Door');
+        addDoor(5, 14, 'none', 'Ward 102 Door');
+        addDoor(18, 14, 'none', 'Morgue Examination Door');
+        addDoor(12, 15, 'none', 'Nurse Station South Door');
+        addDoor(5, 20, 'none', 'Ward 101 Door');
+        addDoor(18, 20, 'rustedKey', 'Maintenance Storage Door');
+        addDoor(11, 22, 'exit', 'Main Entrance Gate');
+        addDoor(12, 22, 'exit', 'Main Entrance Gate');
+
+        if (savedData && savedData.doors) {
+          for (const k in savedData.doors) {
+            if (doors[k]) {
+              doors[k].openAmount = savedData.doors[k].openAmount;
+              doors[k].targetOpen = savedData.doors[k].targetOpen;
+              doors[k].locked = savedData.doors[k].locked;
+            }
+          }
+        }
+
+        const noteTexts = {
+          note_start: {
+            id: 'note_start',
+            title: 'Torn Note — Ward 101',
+            body: `03:17 AM\n\n"Don't trust the footsteps. Sometimes they belong to you."\n\nMain entrance is dead. The generator in the North-West Boiler Room tripped when the wards went dark. Find a fuse in Maintenance, restore power, and pull the Records access card before whatever is in the halls finds you.`
+          },
+          note_clue1: {
+            id: 'note_clue1',
+            title: 'Patient Ledger — Ward 102',
+            body: `Orderly Shift Log:\n\nThey scrambled the Main Gate override again before evacuating.\n\nThe FIRST digit of the exit code is ${d1}.\nTo remember the SECOND digit, add ${a2} + ${b2}.`
+          },
+          note_clue2: {
+            id: 'note_clue2',
+            title: 'Autopsy Memo — East Morgue',
+            body: `Dr. Mercer's Note:\n\nI split the four-digit gate cipher across wings so patients could never assemble it.\n\nThe THIRD digit equals the number of generator fuses required (1) plus ${d3 - 1}.`
+          },
+          note_clue3: {
+            id: 'note_clue3',
+            title: 'Night Watch Log — Records Dept.',
+            body: `Security Desk Entry:\n\nPower must be restored and a Level-2 Security Card swiped before the South Gate keypad accepts the code.\n\nThe FOURTH and final digit is ${d4}.`
+          },
+          note_secret: {
+            id: 'note_secret',
+            title: 'CONFIDENTIAL: Subject 09 (The Hollow Protocol)',
+            body: `BLACKTHORN ARCHIVE — EYES ONLY\n\nSubject 09 did not die in the 1994 basement fire. After prolonged sensory deprivation inside Ward 0, the subject stopped blinking, stopped speaking, and began mimicking the footsteps of staff in adjacent hallways.\n\nEvery time the clock struck 3:17 AM, the building's power failed and Subject 09 stood outside Ward 101.\n\nYou were never a visitor here. Look at your intake band.`
+          }
+        };
+
+        const items = [
+          // Required Progression
+          { id: 'flashlight', type: 'flashlight', sprite: 'flashlight', x: 3.6, y: 18.8, label: 'Flashlight', collected: false },
+          { id: 'note_start', type: 'note', sprite: 'note', x: 2.3, y: 19.6, label: 'Handwritten Note', noteId: 'note_start', collected: false },
+
+          // Nurse Station
+          { id: 'map_item', type: 'map', sprite: 'map', x: 11.5, y: 11.5, label: 'Hospital Map', collected: false },
+          { id: 'rusted_key', type: 'key', sprite: 'key', x: 13.2, y: 10.2, label: 'Rusted Key', collected: false },
+          { id: 'bat_nurse', type: 'battery', sprite: 'battery', x: 10.2, y: 13.4, label: 'Battery', collected: false },
+
+          // Ward 102
+          { id: 'note_clue1', type: 'note', sprite: 'note', x: 2.2, y: 13.5, label: 'Patient Ledger Note', noteId: 'note_clue1', collected: false },
+          { id: 'bat_w102', type: 'battery', sprite: 'battery', x: 3.5, y: 14.7, label: 'Battery', collected: false },
+
+          // Isolation Ward 103
+          { id: 'bat_w103', type: 'battery', sprite: 'battery', x: 2.0, y: 7.8, label: 'Battery', collected: false },
+
+          // Maintenance Storage (locked by Rusted Key)
+          { id: 'gen_fuse', type: 'fuse', sprite: 'fuse', x: 21.0, y: 19.3, label: 'Generator Fuse', collected: false },
+          { id: 'bat_storage', type: 'battery', sprite: 'battery', x: 20.5, y: 20.8, label: 'Battery', collected: false },
+
+          // Boiler Room
+          { id: 'bat_boiler', type: 'battery', sprite: 'battery', x: 3.8, y: 1.8, label: 'Battery', collected: false },
+
+          // East Morgue
+          { id: 'note_clue2', type: 'note', sprite: 'note', x: 20.8, y: 13.4, label: 'Autopsy Memo Note', noteId: 'note_clue2', collected: false },
+          { id: 'bat_morgue', type: 'battery', sprite: 'battery', x: 19.6, y: 14.8, label: 'Battery', collected: false },
+
+          // North Dayroom
+          { id: 'bat_dayroom', type: 'battery', sprite: 'battery', x: 12.2, y: 2.5, label: 'Battery', collected: false },
+
+          // Records Dept (locked until Power Restored)
+          { id: 'sec_card', type: 'card', sprite: 'card', x: 21.1, y: 2.1, label: 'Security Access Card', collected: false },
+          { id: 'note_clue3', type: 'note', sprite: 'note', x: 19.8, y: 3.6, label: 'Night Watch Log', noteId: 'note_clue3', collected: false },
+          { id: 'bat_records', type: 'battery', sprite: 'battery', x: 21.4, y: 4.1, label: 'Battery', collected: false },
+
+          // Ward 0 Director Archive (locked by Security Card -> Secret Ending item)
+          { id: 'note_secret', type: 'note', sprite: 'note', x: 21.0, y: 8.2, label: 'Subject 09 Dossier', noteId: 'note_secret', isSecret: true, collected: false }
+        ];
+
+        if (savedData && savedData.collectedIds) {
+          const set = new Set(savedData.collectedIds);
+          items.forEach((it) => { if (set.has(it.id)) it.collected = true; });
+        }
+
+        // Static & semi-interactive environmental props
+        const props = [
+          { id: 'prop_gen', type: 'generator', sprite: savedData && savedData.powerRestored ? 'generatorOn' : 'generatorOff', x: 1.8, y: 2.2, solid: true, label: 'Power Generator' },
+          { id: 'prop_keypad', type: 'keypad', sprite: 'keypad', x: 10.3, y: 21.7, solid: false, label: 'Main Gate Keypad' },
+          { id: 'prop_wheelchair', type: 'wheelchair', sprite: 'wheelchair', x: 6.6, y: 10.4, solid: false, moved: false },
+          { id: 'prop_radio', type: 'radio', sprite: 'radio', x: 11.4, y: 9.6, solid: false, label: 'Medical Intercom' },
+          { id: 'prop_cabinet1', type: 'cabinet', sprite: 'cabinet', x: 19.6, y: 1.5, solid: true, searched: false, label: 'Filing Cabinet' },
+          { id: 'prop_cabinet2', type: 'cabinet', sprite: 'cabinet', x: 9.6, y: 10.0, solid: true, searched: false, label: 'Medical Drawer' },
+          // Beds & medical equipment
+          { id: 'prop_bed1', type: 'bed', sprite: 'bed', x: 1.8, y: 18.7, solid: true },
+          { id: 'prop_bed2', type: 'bed', sprite: 'bed', x: 1.8, y: 12.6, solid: true },
+          { id: 'prop_bed3', type: 'bed', sprite: 'bed', x: 1.8, y: 14.6, solid: true },
+          { id: 'prop_bed4', type: 'bed', sprite: 'bed', x: 21.4, y: 12.6, solid: true },
+          { id: 'prop_cart1', type: 'cart', sprite: 'cart', x: 16.5, y: 11.2, solid: false },
+          { id: 'prop_cart2', type: 'cart', sprite: 'cart', x: 7.3, y: 15.6, solid: false },
+          { id: 'prop_cables1', type: 'cables', sprite: 'cables', x: 6.5, y: 6.5, solid: false },
+          { id: 'prop_cables2', type: 'cables', sprite: 'cables', x: 16.5, y: 6.5, solid: false },
+          { id: 'prop_cables3', type: 'cables', sprite: 'cables', x: 11.5, y: 17.5, solid: false }
+        ];
+
+        // Ceiling light positions
+        const lights = [
+          { x: 3.0, y: 19.5, radius: 3.4, base: 0.48, flicker: true, on: true },
+          { x: 6.5, y: 17.5, radius: 4.0, base: 0.42, flicker: true, on: true },
+          { x: 6.5, y: 11.0, radius: 4.0, base: 0.40, flicker: true, on: true },
+          { x: 6.5, y: 5.5, radius: 3.8, base: 0.36, flicker: false, on: false }, // can turn on via event!
+          { x: 11.5, y: 11.5, radius: 4.2, base: 0.45, flicker: true, on: true },
+          { x: 16.5, y: 14.5, radius: 4.0, base: 0.40, flicker: true, on: true },
+          { x: 16.5, y: 6.5, radius: 4.0, base: 0.38, flicker: false, on: true },
+          { x: 11.5, y: 20.5, radius: 4.4, base: 0.44, flicker: true, on: true },
+          { x: 2.5, y: 2.5, radius: 4.0, base: 0.42, flicker: true, on: true },
+          { x: 20.5, y: 2.5, radius: 4.2, base: 0.45, flicker: false, on: true }
+        ];
+
+        const inv = savedData ? savedData.inv : {
+          hasFlashlight: false,
+          batteries: 1,
+          rustedKey: false,
+          fuse: false,
+          securityCard: false,
+          map: false,
+          secretDoc: false,
+          notes: []
+        };
+
+        const player = savedData ? Object.assign({
+          vx: 0, vy: 0, stamina: 100, crouched: false, bobPhase: 0,
+          flashlightOn: false, battery: 100, hiding: false, hideReturnX: 0, hideReturnY: 0, hideReturnAng: 0
+        }, savedData.player) : {
+          x: 2.7, y: 20.5, ang: -Math.PI * 0.35,
+          vx: 0, vy: 0, stamina: 100, crouched: false, bobPhase: 0,
+          flashlightOn: false, battery: 100,
+          hiding: false, hideReturnX: 0, hideReturnY: 0, hideReturnAng: 0
+        };
+
+        const watcher = savedData ? Object.assign({
+          vx: 0, vy: 0, path: [], pathTimer: 0, stateTimer: 0,
+          targetX: 11.5, targetY: 3.5, spottedInLocker: false,
+          animTime: 0, stepTimer: 0, headTwitch: 0, disengageCooldown: 0
+        }, savedData.watcher) : {
+          x: 11.5, y: 2.5, ang: 0,
+          state: 'DORMANT', // DORMANT | STALKING | INVESTIGATING | SEARCHING | CHASING | DISENGAGING
+          path: [], pathTimer: 0, stateTimer: 0,
+          targetX: 11.5, targetY: 2.5, spottedInLocker: false,
+          animTime: 0, stepTimer: 0, headTwitch: 0, disengageCooldown: 0
+        };
+
+        return {
+          time: 0,
+          exitCode,
+          noteTexts,
+          doors,
+          items,
+          props,
+          lights,
+          inv,
+          player,
+          watcher,
+          powerRestored: savedData ? !!savedData.powerRestored : false,
+          exitUnlocked: savedData ? !!savedData.exitUnlocked : false,
+          powerOutageTimer: 0,
+          wheelchairLookedAt: false,
+          apparition: { active: false, x: 0, y: 0, timer: 0 },
+          shadowCross: { active: false, x: 0, y: 0, vx: 0, vy: 0, timer: 0 },
+          eventCooldown: 18,
+          lastEventIdx: -1,
+          footstepTimer: 0,
+          noiseLevel: 0,
+          objectiveText: savedData ? savedData.objectiveText : 'Find a light source in Ward 101',
+          jumpscareCooldown: 0,
+          generatorScareDone: savedData ? !!savedData.generatorScareDone : false,
+          checkpoint: savedData || null
+        };
+      }
+
+      function serializeState(st) {
+        const doorSnap = {};
+        for (const k in st.doors) {
+          doorSnap[k] = {
+            openAmount: st.doors[k].openAmount,
+            targetOpen: st.doors[k].targetOpen,
+            locked: st.doors[k].locked
+          };
+        }
+        return {
+          exitCode: st.exitCode,
+          powerRestored: st.powerRestored,
+          exitUnlocked: st.exitUnlocked,
+          generatorScareDone: st.generatorScareDone,
+          objectiveText: st.objectiveText,
+          collectedIds: st.items.filter((i) => i.collected).map((i) => i.id),
+          inv: JSON.parse(JSON.stringify(st.inv)),
+          doors: doorSnap,
+          player: {
+            x: st.player.hiding ? st.player.hideReturnX : st.player.x,
+            y: st.player.hiding ? st.player.hideReturnY : st.player.y,
+            ang: st.player.ang,
+            battery: st.player.battery,
+            flashlightOn: st.player.flashlightOn,
+            stamina: 100
+          },
+          watcher: {
+            x: st.watcher.x,
+            y: st.watcher.y,
+            state: st.watcher.state === 'CHASING' ? 'SEARCHING' : st.watcher.state
+          }
+        };
+      }
+
+      function saveCheckpoint(reason) {
+        if (!state) return;
+        const snap = serializeState(state);
+        state.checkpoint = snap;
+        safeStorage.set(STORAGE_KEYS.save, snap);
+        refreshMenuContinue();
+      }
+
+      /* =========================================================
+         6. COLLISION, LINE OF SIGHT & BFS PATHFINDING
+         ========================================================= */
+      function getTile(tx, ty) {
+        if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return 1;
+        return Number(RAW_MAP[ty][tx]);
+      }
+
+      function isSolidForPlayer(tx, ty) {
+        const t = getTile(tx, ty);
+        if (t === 0) return false;
+        if (t === 6 || t === 7) {
+          const d = state.doors[`${tx},${ty}`];
+          return !d || d.openAmount < 0.72;
+        }
+        return true;
+      }
+
+      function isSolidForEnemy(tx, ty) {
+        const t = getTile(tx, ty);
+        if (t === 0) return false;
+        if (t === 6) {
+          const d = state.doors[`${tx},${ty}`];
+          // Watcher cannot pass permanently locked security/exit doors, can push unlocked doors open
+          if (!d) return true;
+          return d.locked !== 'none';
+        }
+        return true;
+      }
+
+      function isPositionBlocked(x, y, radius) {
+        const minX = Math.floor(x - radius);
+        const maxX = Math.floor(x + radius);
+        const minY = Math.floor(y - radius);
+        const maxY = Math.floor(y + radius);
+        for (let ty = minY; ty <= maxY; ty++) {
+          for (let tx = minX; tx <= maxX; tx++) {
+            if (isSolidForPlayer(tx, ty)) {
+              const cx = Math.max(tx, Math.min(x, tx + 1));
+              const cy = Math.max(ty, Math.min(y, ty + 1));
+              const dx = x - cx;
+              const dy = y - cy;
+              if (dx * dx + dy * dy < radius * radius) return true;
+            }
+          }
+        }
+        // Solid props
+        for (let i = 0; i < state.props.length; i++) {
+          const p = state.props[i];
+          if (!p.solid) continue;
+          const dx = x - p.x;
+          const dy = y - p.y;
+          if (dx * dx + dy * dy < (radius + 0.25) * (radius + 0.25)) return true;
+        }
+        return false;
+      }
+
+      function hasLineOfSight(x1, y1, x2, y2, allowClosedDoors = false) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 0.05) return true;
+        const steps = Math.ceil(dist * 7);
+        const sx = dx / steps;
+        const sy = dy / steps;
+        let cx = x1;
+        let cy = y1;
+        for (let i = 1; i < steps; i++) {
+          cx += sx;
+          cy += sy;
+          const tx = Math.floor(cx);
+          const ty = Math.floor(cy);
+          const t = getTile(tx, ty);
+          if (t !== 0) {
+            if (t === 6 || t === 7) {
+              const d = state.doors[`${tx},${ty}`];
+              if (d && (allowClosedDoors || d.openAmount > 0.45)) continue;
+            }
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function findPathBFS(sx, sy, gx, gy) {
+        const startX = Math.max(0, Math.min(MAP_W - 1, Math.floor(sx)));
+        const startY = Math.max(0, Math.min(MAP_H - 1, Math.floor(sy)));
+        const goalX = Math.max(0, Math.min(MAP_W - 1, Math.floor(gx)));
+        const goalY = Math.max(0, Math.min(MAP_H - 1, Math.floor(gy)));
+        if (startX === goalX && startY === goalY) return [];
+
+        const total = MAP_W * MAP_H;
+        const visited = new Uint8Array(total);
+        const parent = new Int16Array(total).fill(-1);
+        const queue = new Int16Array(total);
+        let head = 0, tail = 0;
+
+        const startIdx = startY * MAP_W + startX;
+        const goalIdx = goalY * MAP_W + goalX;
+        visited[startIdx] = 1;
+        queue[tail++] = startIdx;
+
+        const dirs = [1, -1, MAP_W, -MAP_W];
+        let found = false;
+        while (head < tail) {
+          const cur = queue[head++];
+          if (cur === goalIdx) { found = true; break; }
+          const cx = cur % MAP_W;
+          const cy = (cur / MAP_W) | 0;
+          for (let i = 0; i < 4; i++) {
+            const nx = cx + (i === 0 ? 1 : i === 1 ? -1 : 0);
+            const ny = cy + (i === 2 ? 1 : i === 3 ? -1 : 0);
+            if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) continue;
+            const nIdx = ny * MAP_W + nx;
+            if (visited[nIdx]) continue;
+            if (nIdx !== goalIdx && isSolidForEnemy(nx, ny)) continue;
+            visited[nIdx] = 1;
+            parent[nIdx] = cur;
+            queue[tail++] = nIdx;
+          }
+        }
+
+        if (!found) return [];
+        const path = [];
+        let cur = goalIdx;
+        while (cur !== -1 && cur !== startIdx) {
+          path.push({ x: (cur % MAP_W) + 0.5, y: ((cur / MAP_W) | 0) + 0.5 });
+          cur = parent[cur];
+        }
+        path.reverse();
+        return path;
+      }
+
+      /* =========================================================
+         7. UI REFERENCES & TOAST HELPERS
+         ========================================================= */
+      const rayCanvas = document.getElementById('rayCanvas');
+      const fxCanvas = document.getElementById('fxCanvas');
+      const rayCtx = rayCanvas.getContext('2d', { alpha: false });
+      const fxCtx = fxCanvas.getContext('2d');
+      const mapCanvas = document.getElementById('mapCanvas');
+      const mapCtx = mapCanvas.getContext('2d');
+
+      const ui = {
+        hud: document.getElementById('hud'),
+        crosshair: document.getElementById('crosshair'),
+        interactPrompt: document.getElementById('interactPrompt'),
+        pointerHint: document.getElementById('pointerHint'),
+        hidingBanner: document.getElementById('hidingBanner'),
+        objectiveToast: document.getElementById('objectiveToast'),
+        subtitleToast: document.getElementById('subtitleToast'),
+        batteryPct: document.getElementById('batteryPct'),
+        batteryFill: document.getElementById('batteryFill'),
+        batteryRow: document.getElementById('batteryRow'),
+        staminaPct: document.getElementById('staminaPct'),
+        staminaFill: document.getElementById('staminaFill'),
+        staminaRow: document.getElementById('staminaRow'),
+        menuScreen: document.getElementById('menuScreen'),
+        btnContinue: document.getElementById('btnContinue'),
+        endingsMeta: document.getElementById('endingsMeta'),
+        howToScreen: document.getElementById('howToScreen'),
+        settingsScreen: document.getElementById('settingsScreen'),
+        pauseScreen: document.getElementById('pauseScreen'),
+        inventoryScreen: document.getElementById('inventoryScreen'),
+        mapScreen: document.getElementById('mapScreen'),
+        noteScreen: document.getElementById('noteScreen'),
+        keypadScreen: document.getElementById('keypadScreen'),
+        deathScreen: document.getElementById('deathScreen'),
+        endingScreen: document.getElementById('endingScreen'),
+        jumpscareFlash: document.getElementById('jumpscareFlash')
+      };
+
+      let objectiveTimer = null;
+      function showObjective(text) {
+        if (state) state.objectiveText = text;
+        ui.objectiveToast.textContent = 'Objective: ' + text;
+        ui.objectiveToast.classList.add('visible');
+        clearTimeout(objectiveTimer);
+        objectiveTimer = setTimeout(() => {
+          ui.objectiveToast.classList.remove('visible');
+        }, 6200);
+      }
+
+      let subtitleTimer = null;
+      function showSubtitle(text, duration = 4200) {
+        ui.subtitleToast.textContent = text;
+        ui.subtitleToast.classList.add('visible');
+        clearTimeout(subtitleTimer);
+        subtitleTimer = setTimeout(() => {
+          ui.subtitleToast.classList.remove('visible');
+        }, duration);
+      }
+
+      /* =========================================================
+         8. RAYCASTING RENDERER (PER-PIXEL LIGHTING & FOG)
+         ========================================================= */
+      let bufW = 520;
+      let bufH = 292;
+      let offCanvas = document.createElement('canvas');
+      let offCtx = offCanvas.getContext('2d');
+      let imgData = null;
+      let buf32 = null;
+      let zBuffer = new Float32Array(520);
+
+      function resizeRenderBuffers() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        fxCanvas.width = w;
+        fxCanvas.height = h;
+        const aspect = h / Math.max(1, w);
+        const targetW = settings.graphicsQuality === 'low' ? 300 :
+                        settings.graphicsQuality === 'medium' ? 420 : 540;
+        bufW = targetW;
+        bufH = Math.max(150, Math.round(targetW * aspect));
+        offCanvas.width = bufW;
+        offCanvas.height = bufH;
+        rayCanvas.width = bufW;
+        rayCanvas.height = bufH;
+        imgData = offCtx.createImageData(bufW, bufH);
+        buf32 = new Uint32Array(imgData.data.buffer);
+        zBuffer = new Float32Array(bufW);
+      }
+
+      // Compute dynamic flicker multiplier for lights
+      function getLightFlicker(light, t) {
+        if (!light.on) return 0;
+        if (!light.flicker) return light.base;
+        const wave = Math.sin(t * 7.3 + light.x * 3.1) * Math.sin(t * 23.7 + light.y * 5.7);
+        if (wave > 0.78) return light.base * 0.12;
+        if (wave > 0.55) return light.base * 0.55;
+        return light.base;
+      }
+
+      // Reusable sprite list
+      const spriteDrawList = [];
+
+      function renderScene(camX, camY, camAng, pitchBob, flashOn, flashStrength, timeNow, lights, renderProps, renderItems, watcherObj, apparitionObj, shadowObj, powerOut) {
+        const w = bufW;
+        const h = bufH;
+        const halfH = (h * 0.5 + pitchBob) | 0;
+        const fovRad = (settings.fov * Math.PI) / 180;
+        const dirX = Math.cos(camAng);
+        const dirY = Math.sin(camAng);
+        const planeScale = Math.tan(fovRad * 0.5);
+        const planeX = -dirY * planeScale;
+        const planeY = dirX * planeScale;
+
+        const floorTex = WALL_TEX.floor;
+        const ceilTex = WALL_TEX.ceil;
+
+        const rayDirX0 = dirX - planeX;
+        const rayDirY0 = dirY - planeY;
+        const rayDirX1 = dirX + planeX;
+        const rayDirY1 = dirY + planeY;
+        const posZ = 0.5 * h;
+
+        const fogDist = powerOut ? 6.5 : 10.5;
+        const ambientMin = powerOut ? 0.045 : (flashOn ? 0.075 : 0.115);
+
+        // Pre-compute active light flickers for this frame
+        const activeLights = [];
+        for (let i = 0; i < lights.length; i++) {
+          const l = lights[i];
+          if (!l.on) continue;
+          const f = powerOut ? 0.04 : getLightFlicker(l, timeNow);
+          if (f > 0.01) activeLights.push({ x: l.x, y: l.y, r2: l.radius * l.radius, invR2: 1 / (l.radius * l.radius), lvl: f });
+        }
+
+        // 1. FLOOR & CEILING CASTING
+        for (let y = 0; y < h; y++) {
+          const isFloor = y >= halfH;
+          const p = isFloor ? (y - halfH) : (halfH - y);
+          const rowDistance = p === 0 ? 100 : (posZ / p);
+
+          const fog = Math.max(0, 1 - rowDistance / fogDist);
+          const rowOffset = y * w;
+
+          if (fog <= 0.005) {
+            const darkCol = packRGBA(3, 4, 4, 255);
+            for (let x = 0; x < w; x++) buf32[rowOffset + x] = darkCol;
+            continue;
+          }
+
+          const floorStepX = rowDistance * (rayDirX1 - rayDirX0) / w;
+          const floorStepY = rowDistance * (rayDirY1 - rayDirY0) / w;
+          let floorX = camX + rowDistance * rayDirX0;
+          let floorY = camY + rowDistance * rayDirY0;
+
+          // Approximate light along row center + beam cone along X
+          const tex = isFloor ? floorTex : ceilTex;
+          const distLight = ambientMin + (flashOn && rowDistance < 9.5 ? flashStrength * Math.max(0, 1 - rowDistance / 9.5) * 1.15 : 0);
+
+          for (let x = 0; x < w; x++) {
+            const tx = ((floorX * 64) | 0) & 63;
+            const ty = ((floorY * 64) | 0) & 63;
+            const px = tex[(ty << 6) + tx];
+
+            // Beam horizontal cone
+            const nx = (x / w) * 2 - 1;
+            const cone = Math.max(0, 1 - nx * nx * 5.2);
+            let light = ambientMin + (flashOn ? cone * flashStrength * Math.max(0, 1 - rowDistance / 9.5) * 1.25 : 0);
+
+            // Local ceiling lights contribution (fast check)
+            if (!powerOut && rowDistance < 11) {
+              for (let li = 0; li < activeLights.length; li++) {
+                const al = activeLights[li];
+                const ldx = floorX - al.x;
+                const ldy = floorY - al.y;
+                const ld2 = ldx * ldx + ldy * ldy;
+                if (ld2 < al.r2) {
+                  light += al.lvl * (1 - ld2 * al.invR2);
+                }
+              }
+            }
+
+            let shade = light * fog;
+            if (shade > 1.1) shade = 1.1;
+
+            const r = ((px & 255) * shade) | 0;
+            const g = (((px >> 8) & 255) * shade) | 0;
+            const b = (((px >> 16) & 255) * shade) | 0;
+            buf32[rowOffset + x] = packRGBA(r > 255 ? 255 : r, g > 255 ? 255 : g, b > 255 ? 255 : b, 255);
+
+            floorX += floorStepX;
+            floorY += floorStepY;
+          }
+        }
+
+        // 2. WALL & DOOR RAYCASTING (DDA)
+        for (let x = 0; x < w; x++) {
+          const cameraX = (2 * x) / w - 1;
+          const rayDirX = dirX + planeX * cameraX;
+          const rayDirY = dirY + planeY * cameraX;
+
+          let mapX = Math.floor(camX);
+          let mapY = Math.floor(camY);
+
+          const deltaDistX = rayDirX === 0 ? 1e30 : Math.abs(1 / rayDirX);
+          const deltaDistY = rayDirY === 0 ? 1e30 : Math.abs(1 / rayDirY);
+
+          let stepX, stepY, sideDistX, sideDistY;
+          if (rayDirX < 0) {
+            stepX = -1;
+            sideDistX = (camX - mapX) * deltaDistX;
+          } else {
+            stepX = 1;
+            sideDistX = (mapX + 1.0 - camX) * deltaDistX;
+          }
+          if (rayDirY < 0) {
+            stepY = -1;
+            sideDistY = (camY - mapY) * deltaDistY;
+          } else {
+            stepY = 1;
+            sideDistY = (mapY + 1.0 - camY) * deltaDistY;
+          }
+
+          let hitTile = 0;
+          let side = 0;
+          let perpWallDist = 100;
+          let wallX = 0;
+          let hitDoor = null;
+
+          for (let step = 0; step < 36; step++) {
+            if (sideDistX < sideDistY) {
+              sideDistX += deltaDistX;
+              mapX += stepX;
+              side = 0;
+            } else {
+              sideDistY += deltaDistY;
+              mapY += stepY;
+              side = 1;
+            }
+
+            if (mapX < 0 || mapY < 0 || mapX >= MAP_W || mapY >= MAP_H) {
+              hitTile = 1;
+              perpWallDist = side === 0 ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+              break;
+            }
+
+            const t = getTile(mapX, mapY);
+            if (t === 0) continue;
+
+            const dist = side === 0 ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+            let wx = side === 0 ? (camY + dist * rayDirY) : (camX + dist * rayDirX);
+            wx -= Math.floor(wx);
+
+            if (t === 6 || t === 7) {
+              const d = state ? state.doors[`${mapX},${mapY}`] : null;
+              const open = d ? d.openAmount : 0;
+              if (wx < 1 - open) {
+                hitTile = t;
+                perpWallDist = dist;
+                wallX = wx + open;
+                hitDoor = d;
+                break;
+              } else {
+                // Ray passes through open portion of door
+                continue;
+              }
+            } else {
+              hitTile = t;
+              perpWallDist = dist;
+              wallX = wx;
+              break;
+            }
+          }
+
+          if (perpWallDist < 0.05) perpWallDist = 0.05;
+          zBuffer[x] = perpWallDist;
+
+          const lineHeight = (h / perpWallDist) | 0;
+          let drawStart = ((-lineHeight >> 1) + halfH) | 0;
+          let drawEnd = ((lineHeight >> 1) + halfH) | 0;
+          if (drawStart < 0) drawStart = 0;
+          if (drawEnd >= h) drawEnd = h - 1;
+
+          const texBuf = WALL_TEX[hitTile] || WALL_TEX[1];
+          let texX = (wallX * 64) | 0;
+          if (side === 0 && rayDirX > 0) texX = 63 - texX;
+          if (side === 1 && rayDirY < 0) texX = 63 - texX;
+          texX &= 63;
+
+          const hitX = camX + perpWallDist * rayDirX;
+          const hitY = camY + perpWallDist * rayDirY;
+
+          // Lighting for column
+          const nx = cameraX;
+          const cone = Math.max(0, 1 - nx * nx * 4.6);
+          let light = ambientMin + (flashOn ? cone * flashStrength * Math.max(0, 1 - perpWallDist / 10.5) * 1.35 : 0);
+
+          if (!powerOut && perpWallDist < 12) {
+            for (let li = 0; li < activeLights.length; li++) {
+              const al = activeLights[li];
+              const ldx = hitX - al.x;
+              const ldy = hitY - al.y;
+              const ld2 = ldx * ldx + ldy * ldy;
+              if (ld2 < al.r2) {
+                light += al.lvl * (1 - ld2 * al.invR2);
+              }
+            }
+          }
+
+          const fog = Math.max(0, 1 - perpWallDist / fogDist);
+          let shade = light * fog * (side === 1 ? 0.82 : 1.0);
+          if (shade > 1.15) shade = 1.15;
+
+          const stepTex = 64 / lineHeight;
+          let texPos = (drawStart - halfH + (lineHeight >> 1)) * stepTex;
+
+          for (let y = drawStart; y <= drawEnd; y++) {
+            const texY = (texPos | 0) & 63;
+            texPos += stepTex;
+            const px = texBuf[(texY << 6) + texX];
+            const r = ((px & 255) * shade) | 0;
+            const g = (((px >> 8) & 255) * shade) | 0;
+            const b = (((px >> 16) & 255) * shade) | 0;
+            buf32[y * w + x] = packRGBA(r > 255 ? 255 : r, g > 255 ? 255 : g, b > 255 ? 255 : b, 255);
+          }
+        }
+
+        // 3. SPRITES (PROPS, ITEMS, WATCHER, HORROR APPARITIONS)
+        spriteDrawList.length = 0;
+        for (let i = 0; i < renderProps.length; i++) {
+          const p = renderProps[i];
+          const dx = p.x - camX;
+          const dy = p.y - camY;
+          spriteDrawList.push({ x: p.x, y: p.y, dist2: dx * dx + dy * dy, tex: SPRITE_TEX[p.sprite], scale: p.type === 'cables' ? 1.1 : 0.85, yOffset: p.type === 'cables' ? -0.32 : 0.1 });
+        }
+        for (let i = 0; i < renderItems.length; i++) {
+          const it = renderItems[i];
+          if (it.collected) continue;
+          const dx = it.x - camX;
+          const dy = it.y - camY;
+          spriteDrawList.push({ x: it.x, y: it.y, dist2: dx * dx + dy * dy, tex: SPRITE_TEX[it.sprite], scale: 0.55, yOffset: 0.25 });
+        }
+        if (watcherObj) {
+          const dx = watcherObj.x - camX;
+          const dy = watcherObj.y - camY;
+          const variant = watcherObj.state === 'CHASING' ? 'watcher2' : (watcherObj.headTwitch > 0.3 ? 'watcher1' : 'watcher0');
+          spriteDrawList.push({ x: watcherObj.x, y: watcherObj.y, dist2: dx * dx + dy * dy, tex: SPRITE_TEX[variant], scale: 1.18, yOffset: -0.06, isEnemy: true });
+        }
+        if (apparitionObj && apparitionObj.active) {
+          const dx = apparitionObj.x - camX;
+          const dy = apparitionObj.y - camY;
+          spriteDrawList.push({ x: apparitionObj.x, y: apparitionObj.y, dist2: dx * dx + dy * dy, tex: SPRITE_TEX.watcher1, scale: 1.18, yOffset: -0.06, isEnemy: true });
+        }
+        if (shadowObj && shadowObj.active) {
+          const dx = shadowObj.x - camX;
+          const dy = shadowObj.y - camY;
+          spriteDrawList.push({ x: shadowObj.x, y: shadowObj.y, dist2: dx * dx + dy * dy, tex: SPRITE_TEX.watcher0, scale: 1.05, yOffset: 0.0, isShadow: true });
+        }
+
+        spriteDrawList.sort((a, b) => b.dist2 - a.dist2);
+
+        const invDet = 1.0 / (planeX * dirY - dirX * planeY);
+        for (let i = 0; i < spriteDrawList.length; i++) {
+          const sp = spriteDrawList[i];
+          if (!sp.tex || sp.dist2 < 0.04) continue;
+
+          const sx = sp.x - camX;
+          const sy = sp.y - camY;
+          const transformX = invDet * (dirY * sx - dirX * sy);
+          const transformY = invDet * (-planeY * sx + planeX * sy);
+          if (transformY <= 0.14) continue;
+
+          const spriteScreenX = ((w * 0.5) * (1 + transformX / transformY)) | 0;
+          const vMove = (sp.yOffset * h / transformY) | 0;
+          const spriteH = Math.abs((h / transformY) * sp.scale) | 0;
+          const spriteW = spriteH;
+
+          let drawStartY = ((-spriteH >> 1) + halfH + vMove) | 0;
+          let drawEndY = ((spriteH >> 1) + halfH + vMove) | 0;
+          let drawStartX = ((-spriteW >> 1) + spriteScreenX) | 0;
+          let drawEndX = ((spriteW >> 1) + spriteScreenX) | 0;
+
+          if (drawEndX < 0 || drawStartX >= w) continue;
+
+          const clipStartY = drawStartY < 0 ? 0 : drawStartY;
+          const clipEndY = drawEndY >= h ? h - 1 : drawEndY;
+          const clipStartX = drawStartX < 0 ? 0 : drawStartX;
+          const clipEndX = drawEndX >= w ? w - 1 : drawEndX;
+
+          const fog = Math.max(0, 1 - transformY / (fogDist + 2));
+          if (fog <= 0.01) continue;
+
+          const nx = (spriteScreenX / w) * 2 - 1;
+          const cone = Math.max(0, 1 - nx * nx * 4.5);
+          let light = ambientMin + (flashOn ? cone * flashStrength * Math.max(0, 1 - transformY / 10.5) * 1.35 : 0);
+
+          if (!powerOut && transformY < 12) {
+            for (let li = 0; li < activeLights.length; li++) {
+              const al = activeLights[li];
+              const ldx = sp.x - al.x;
+              const ldy = sp.y - al.y;
+              const ld2 = ldx * ldx + ldy * ldy;
+              if (ld2 < al.r2) light += al.lvl * (1 - ld2 * al.invR2);
+            }
+          }
+
+          let shade = light * fog;
+          if (sp.isShadow) shade *= 0.25;
+          if (shade > 1.15) shade = 1.15;
+
+          const tSz = sp.tex.size;
+          const tBuf = sp.tex.buf;
+
+          for (let stripe = clipStartX; stripe <= clipEndX; stripe++) {
+            if (transformY >= zBuffer[stripe]) continue;
+            const texX = (((stripe - drawStartX) * tSz / spriteW) | 0);
+            if (texX < 0 || texX >= tSz) continue;
+
+            for (let y = clipStartY; y <= clipEndY; y++) {
+              const d = y - drawStartY;
+              const texY = ((d * tSz / spriteH) | 0);
+              if (texY < 0 || texY >= tSz) continue;
+              const px = tBuf[texY * tSz + texX];
+              if (px === 0) continue;
+
+              const r = ((px & 255) * shade) | 0;
+              const g = (((px >> 8) & 255) * shade) | 0;
+              const b = (((px >> 16) & 255) * shade) | 0;
+              buf32[y * w + stripe] = packRGBA(r > 255 ? 255 : r, g > 255 ? 255 : g, b > 255 ? 255 : b, 255);
+            }
+          }
+        }
+
+        offCtx.putImageData(imgData, 0, 0);
+        rayCtx.drawImage(offCanvas, 0, 0);
+      }
+
+      /* =========================================================
+         9. ATMOSPHERIC FX OVERLAY (FOG, DUST, LOCKER SLATS, CHASE)
+         ========================================================= */
+      const dustParticles = Array.from({ length: 42 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.015,
+        vy: -0.008 - Math.random() * 0.012,
+        size: 1 + Math.random() * 2,
+        alpha: 0.08 + Math.random() * 0.18
+      }));
+
+      function renderOverlayFX(dt, timeNow, hiding, chaseIntensity, powerOut) {
+        const w = fxCanvas.width;
+        const h = fxCanvas.height;
+        fxCtx.clearRect(0, 0, w, h);
+
+        // Drifting volumetric fog gradient
+        const fogAlpha = powerOut ? 0.28 : 0.14;
+        const fogShift = Math.sin(timeNow * 0.35) * w * 0.08;
+        const grad = fxCtx.createRadialGradient(w * 0.5 + fogShift, h * 0.65, w * 0.05, w * 0.5, h * 0.5, w * 0.72);
+        grad.addColorStop(0, `rgba(60, 72, 66, ${fogAlpha})`);
+        grad.addColorStop(1, 'rgba(3, 4, 5, 0)');
+        fxCtx.fillStyle = grad;
+        fxCtx.fillRect(0, 0, w, h);
+
+        // Dust motes
+        if (settings.graphicsQuality !== 'low') {
+          for (let i = 0; i < dustParticles.length; i++) {
+            const p = dustParticles[i];
+            p.x = (p.x + p.vx * dt + 1) % 1;
+            p.y = (p.y + p.vy * dt + 1) % 1;
+            fxCtx.fillStyle = `rgba(190, 200, 192, ${p.alpha})`;
+            fxCtx.fillRect(p.x * w, p.y * h, p.size, p.size);
+          }
+        }
+
+        // Hiding locker slats view
+        if (hiding) {
+          fxCtx.fillStyle = 'rgba(2, 3, 3, 0.96)';
+          const gapLeft = w * 0.38;
+          const gapRight = w * 0.62;
+          fxCtx.fillRect(0, 0, gapLeft, h);
+          fxCtx.fillRect(gapRight, 0, w - gapRight, h);
+          // Vertical slats across peep gap
+          fxCtx.fillRect(w * 0.44, 0, w * 0.025, h);
+          fxCtx.fillRect(w * 0.535, 0, w * 0.025, h);
+          fxCtx.fillRect(0, 0, w, h * 0.12);
+          fxCtx.fillRect(0, h * 0.88, w, h * 0.12);
+        }
+
+        // Chase tension crimson edge pulse & distortion bars
+        if (chaseIntensity > 0.02 && !settings.motionReduction) {
+          const pulse = 0.5 + 0.5 * Math.sin(timeNow * 11);
+          const edgeAlpha = chaseIntensity * (0.14 + pulse * 0.14);
+          const cGrad = fxCtx.createRadialGradient(w * 0.5, h * 0.5, w * 0.22, w * 0.5, h * 0.5, w * 0.72);
+          cGrad.addColorStop(0, 'rgba(0,0,0,0)');
+          cGrad.addColorStop(1, `rgba(115, 16, 16, ${edgeAlpha})`);
+          fxCtx.fillStyle = cGrad;
+          fxCtx.fillRect(0, 0, w, h);
+
+          // Subtle static jitter line
+          if (Math.random() < chaseIntensity * 0.45) {
+            const sy = Math.random() * h;
+            fxCtx.fillStyle = 'rgba(200, 210, 204, 0.07)';
+            fxCtx.fillRect(0, sy, w, 2);
+          }
+        }
+      }
+
+      /* =========================================================
+         10. INTERACTION & PUZZLE LOGIC
+         ========================================================= */
+      function getLookTarget() {
+        const p = state.player;
+        const dx = Math.cos(p.ang);
+        const dy = Math.sin(p.ang);
+
+        // 1. Check nearby uncollected items or interactive props within 2.1m & view cone
+        let best = null;
+        let bestScore = 999;
+
+        const checkCandidate = (obj, kind, distLimit) => {
+          const ox = obj.x - p.x;
+          const oy = obj.y - p.y;
+          const dist = Math.hypot(ox, oy);
+          if (dist > distLimit || dist < 0.15) return;
+          const dot = (ox / dist) * dx + (oy / dist) * dy;
+          if (dot < 0.78) return;
+          if (!hasLineOfSight(p.x, p.y, obj.x, obj.y, true)) return;
+          const score = dist - dot * 0.4;
+          if (score < bestScore) {
+            bestScore = score;
+            best = { kind, obj, dist };
+          }
+        };
+
+        for (let i = 0; i < state.items.length; i++) {
+          const it = state.items[i];
+          if (!it.collected) checkCandidate(it, 'item', 2.0);
+        }
+        for (let i = 0; i < state.props.length; i++) {
+          const pr = state.props[i];
+          if (pr.type === 'generator' || pr.type === 'keypad' || pr.type === 'cabinet' || pr.type === 'radio') {
+            checkCandidate(pr, 'prop', 2.15);
+          }
+        }
+
+        // 2. Raycast forward up to 2.1 tiles for Doors (6, 7) or Lockers (8)
+        for (let step = 0.25; step <= 2.1; step += 0.08) {
+          const rx = p.x + dx * step;
+          const ry = p.y + dy * step;
+          const tx = Math.floor(rx);
+          const ty = Math.floor(ry);
+          const tile = getTile(tx, ty);
+          if (tile === 6 || tile === 7) {
+            const d = state.doors[`${tx},${ty}`];
+            if (d && (!best || step < best.dist + 0.35)) {
+              best = { kind: 'door', obj: d, dist: step };
+            }
+            break;
+          }
+          if (tile === 8) {
+            if (!best || step < best.dist + 0.35) {
+              best = { kind: 'locker', obj: { tx, ty }, dist: step };
+            }
+            break;
+          }
+          if (tile !== 0) break;
+        }
+        return best;
+      }
+
+      function getTargetPrompt(target) {
+        if (!target) return '';
+        if (target.kind === 'item') return `[E] Pick up ${target.obj.label}`;
+        if (target.kind === 'door') {
+          const d = target.obj;
+          if (d.locked === 'rustedKey') return '[E] Unlock with Rusted Key (Locked)';
+          if (d.locked === 'power') return state.powerRestored ? '[E] Open Electronic Door' : '[E] Electronic Lock (Power Required)';
+          if (d.locked === 'securityCard') return '[E] Swipe Security Card (Locked)';
+          if (d.locked === 'exit') return state.exitUnlocked ? '[E] Open Main Gate' : '[E] Locked — Use Gate Keypad';
+          return d.targetOpen ? `[E] Close ${d.label}` : `[E] Open ${d.label}`;
+        }
+        if (target.kind === 'locker') {
+          return state.player.hiding ? '[E] Exit Locker' : '[E] Hide in Locker';
+        }
+        if (target.kind === 'prop') {
+          const pr = target.obj;
+          if (pr.type === 'generator') {
+            if (state.powerRestored) return 'Generator Running';
+            return state.inv.fuse ? '[E] Insert Fuse & Start Generator' : '[E] Inspect Generator (Fuse Missing)';
+          }
+          if (pr.type === 'keypad') return '[E] Use Main Gate Keypad';
+          if (pr.type === 'cabinet') return pr.searched ? 'Cabinet Empty' : '[E] Search Cabinet';
+          if (pr.type === 'radio') return '[E] Inspect Intercom';
+        }
+        return '[E] Interact';
+      }
+
+      function handleInteract() {
+        if (state.player.hiding) {
+          exitLocker();
+          return;
+        }
+        const target = getLookTarget();
+        if (!target) return;
+
+        if (target.kind === 'item') {
+          collectItem(target.obj);
+        } else if (target.kind === 'door') {
+          interactDoor(target.obj);
+        } else if (target.kind === 'locker') {
+          enterLocker(target.obj);
+        } else if (target.kind === 'prop') {
+          interactProp(target.obj);
+        }
+      }
+
+      function collectItem(it) {
+        it.collected = true;
+        if (it.type === 'flashlight') {
+          state.inv.hasFlashlight = true;
+          state.player.flashlightOn = true;
+          audio.playFlashlightClick(true);
+          showSubtitle('Picked up a heavy hospital flashlight. Press [F] to toggle.');
+          showObjective('Find the Generator Fuse and restore power (Check Nurse Station & Maintenance)');
+          saveCheckpoint('flashlight');
+        } else if (it.type === 'battery') {
+          if (state.player.battery < 50) {
+            state.player.battery = Math.min(100, state.player.battery + 60);
+            showSubtitle('Replaced depleted cell (+60% battery).');
+          } else {
+            state.inv.batteries++;
+            showSubtitle('Collected spare battery. Use it from Inventory [Tab].');
+          }
+          audio.playPickup();
+        } else if (it.type === 'key') {
+          state.inv.rustedKey = true;
+          audio.playPickup();
+          showSubtitle('Picked up a Rusted Maintenance Key.');
+          saveCheckpoint('key');
+        } else if (it.type === 'fuse') {
+          state.inv.fuse = true;
+          audio.playPickup();
+          showSubtitle('Collected the Generator Fuse. Take it to the North-West Boiler Room.');
+          showObjective('Insert the Fuse into the Boiler Room Generator');
+          saveCheckpoint('fuse');
+        } else if (it.type === 'card') {
+          state.inv.securityCard = true;
+          audio.playPickup();
+          showSubtitle('Collected Level-2 Security Access Card.');
+          showObjective('Assemble the 4-digit exit code from 3 notes and unlock the South Gate');
+          saveCheckpoint('card');
+        } else if (it.type === 'map') {
+          state.inv.map = true;
+          audio.playPaper();
+          showSubtitle('Collected Blackthorn Asylum Floor Plan. Press [M] to view.');
+        } else if (it.type === 'note') {
+          audio.playPaper();
+          const noteObj = state.noteTexts[it.noteId];
+          if (noteObj && !state.inv.notes.some((n) => n.id === noteObj.id)) {
+            state.inv.notes.push(noteObj);
+          }
+          if (it.isSecret) {
+            state.inv.secretDoc = true;
+            showSubtitle('You uncovered Subject 09\'s true file. Escape now.');
+            saveCheckpoint('secret');
+          }
+          openNoteReader(noteObj);
+        }
+      }
+
+      function interactDoor(d) {
+        if (d.locked === 'rustedKey') {
+          if (state.inv.rustedKey) {
+            d.locked = 'none';
+            d.targetOpen = 1;
+            audio.playDoor(true);
+            showSubtitle('Unlocked Maintenance Storage with the Rusted Key.');
+          } else {
+            audio.playRattle(0);
+            showSubtitle('Locked. Needs a rusted maintenance key.');
+          }
+          return;
+        }
+        if (d.locked === 'power') {
+          if (state.powerRestored) {
+            d.locked = 'none';
+            d.targetOpen = 1;
+            audio.playDoor(true);
+            showSubtitle('Electronic lock disengaged.');
+          } else {
+            audio.playRattle(0);
+            showSubtitle('Electronic lock has no power. Restore the Boiler Room generator first.');
+          }
+          return;
+        }
+        if (d.locked === 'securityCard') {
+          if (state.inv.securityCard) {
+            d.locked = 'none';
+            d.targetOpen = 1;
+            audio.playDoor(true);
+            showSubtitle('Security Card accepted. Opening Ward 0 Archive...');
+          } else {
+            audio.playRattle(0);
+            showSubtitle('Requires a Level-2 Security Access Card.');
+          }
+          return;
+        }
+        if (d.locked === 'exit') {
+          if (state.exitUnlocked) {
+            d.targetOpen = 1;
+            audio.playDoor(true);
+          } else if (state.powerRestored && state.inv.securityCard) {
+            openKeypad();
+          } else if (!state.powerRestored) {
+            audio.playRattle(0);
+            showSubtitle('Main Gate is bolted electronically. Restore generator power first.');
+          } else {
+            audio.playRattle(0);
+            showSubtitle('Main Gate requires a Level-2 Security Access Card and 4-digit code.');
+          }
+          return;
+        }
+
+        d.targetOpen = d.targetOpen ? 0 : 1;
+        audio.playDoor(d.targetOpen === 1);
+        state.noiseLevel = Math.max(state.noiseLevel, 0.55);
+      }
+
+      function interactProp(pr) {
+        if (pr.type === 'generator') {
+          if (state.powerRestored) {
+            showSubtitle('The generator is humming steadily.');
+            return;
+          }
+          if (!state.inv.fuse) {
+            showSubtitle('The fuse housing is empty. Search East Maintenance Storage.');
+            return;
+          }
+          state.inv.fuse = false;
+          state.powerRestored = true;
+          pr.sprite = 'generatorOn';
+          audio.playPowerClunk(true);
+          showSubtitle('Electricity restored! The Records Department electronic door is now active.');
+          showObjective('Locate the Security Access Card inside the North-East Records Dept.');
+          state.noiseLevel = 1.0;
+          // Alert Watcher toward Boiler Room area
+          if (state.watcher.state !== 'CHASING') {
+            state.watcher.state = 'INVESTIGATING';
+            state.watcher.targetX = 6.5;
+            state.watcher.targetY = 3.5;
+            state.watcher.stateTimer = 8;
+          }
+          // Brief scripted scare when power surges on
+          if (!state.generatorScareDone) {
+            state.generatorScareDone = true;
+            state.apparition = { active: true, x: 6.5, y: 3.0, timer: 1.1 };
+            triggerJumpscareFlash(false);
+          }
+          saveCheckpoint('power');
+        } else if (pr.type === 'keypad') {
+          if (!state.powerRestored) {
+            showSubtitle('The keypad display is dead. Restore generator power first.');
+            return;
+          }
+          if (!state.inv.securityCard) {
+            showSubtitle('Swipe slot blinking red: Security Access Card required.');
+            return;
+          }
+          openKeypad();
+        } else if (pr.type === 'cabinet') {
+          if (pr.searched) return;
+          pr.searched = true;
+          audio.playDoor(true);
+          if (pr.id === 'prop_cabinet1') {
+            state.inv.batteries++;
+            audio.playPickup();
+            showSubtitle('Found a spare battery tucked behind old patient folders.');
+          } else {
+            showSubtitle('Nothing inside but moth-eaten medical charts.');
+          }
+        } else if (pr.type === 'radio') {
+          audio.playWhisper(0);
+          showSubtitle('Static crackles from the speaker: "...still 3:17..."');
+        }
+      }
+
+      function enterLocker(locker) {
+        const p = state.player;
+        p.hideReturnX = p.x;
+        p.hideReturnY = p.y;
+        p.hideReturnAng = p.ang;
+        p.hiding = true;
+        p.flashlightOn = false;
+        // Position player right inside locker facing outward toward room
+        const cx = locker.tx + 0.5;
+        const cy = locker.ty + 0.5;
+        const outAngle = Math.atan2(p.hideReturnY - cy, p.hideReturnX - cx);
+        p.x = cx + Math.cos(outAngle) * 0.42;
+        p.y = cy + Math.sin(outAngle) * 0.42;
+        p.ang = outAngle;
+        audio.playDoor(false);
+        ui.hidingBanner.classList.remove('hidden');
+
+        // Check if Watcher saw player enter!
+        const w = state.watcher;
+        const dToWatcher = Math.hypot(w.x - p.x, w.y - p.y);
+        if (w.state === 'CHASING' && dToWatcher < 7.5 && hasLineOfSight(w.x, w.y, p.hideReturnX, p.hideReturnY, false)) {
+          w.spottedInLocker = true;
+        } else {
+          w.spottedInLocker = false;
+        }
+      }
+
+      function exitLocker() {
+        const p = state.player;
+        p.hiding = false;
+        p.x = p.hideReturnX;
+        p.y = p.hideReturnY;
+        audio.playDoor(true);
+        ui.hidingBanner.classList.add('hidden');
+      }
+
+      /* =========================================================
+         11. THE WATCHER AI & PSYCHOLOGICAL HORROR EVENTS
+         ========================================================= */
+      const PATROL_NODES = [
+        { x: 6.5, y: 16.5 }, { x: 6.5, y: 9.5 }, { x: 6.5, y: 4.5 },
+        { x: 11.5, y: 6.5 }, { x: 16.5, y: 5.5 }, { x: 16.5, y: 12.5 },
+        { x: 16.5, y: 17.5 }, { x: 11.5, y: 16.5 }, { x: 11.5, y: 11.5 }
+      ];
+
+      function updateWatcher(dt) {
+        const w = state.watcher;
+        const p = state.player;
+        w.animTime += dt;
+        w.headTwitch = Math.max(0, w.headTwitch - dt);
+        if (Math.random() < dt * 0.45) w.headTwitch = 0.25 + Math.random() * 0.35;
+        if (w.disengageCooldown > 0) w.disengageCooldown -= dt;
+
+        // Dormant until player leaves Ward 101 or 25 seconds elapse
+        if (w.state === 'DORMANT') {
+          if (p.x > 5.4 || state.time > 26) {
+            w.state = 'STALKING';
+            w.stateTimer = 10;
+            pickStalkTarget();
+          }
+          return;
+        }
+
+        const dx = p.x - w.x;
+        const dy = p.y - w.y;
+        const dist = Math.hypot(dx, dy);
+        const los = hasLineOfSight(w.x, w.y, p.x, p.y, false);
+
+        // Detection rules (fair, respects walls & hiding & light)
+        let sightRange = 4.2;
+        if (p.flashlightOn) sightRange += 5.2;
+        if (p.crouched) sightRange *= 0.65;
+        if (state.powerRestored) sightRange += 1.2;
+        if (p.hiding && !w.spottedInLocker) sightRange = 0;
+
+        const heardDist = state.noiseLevel > 0.7 ? 9.5 : (state.noiseLevel > 0.3 ? 5.2 : 0);
+
+        if (w.disengageCooldown <= 0 && los && dist <= sightRange) {
+          if (w.state !== 'CHASING') {
+            w.state = 'CHASING';
+            w.stateTimer = 7.5;
+            if (state.jumpscareCooldown <= 0) {
+              state.jumpscareCooldown = 22;
+              audio.playScare(false);
+              triggerJumpscareFlash(false);
+            }
+          } else {
+            w.stateTimer = 7.0;
+          }
+          w.targetX = p.x;
+          w.targetY = p.y;
+        } else if (w.state !== 'CHASING' && heardDist > 0 && dist <= heardDist && !p.hiding) {
+          w.state = 'INVESTIGATING';
+          w.targetX = p.x;
+          w.targetY = p.y;
+          w.stateTimer = 7.5;
+        }
+
+        // Capture check (never through walls!)
+        if (w.state === 'CHASING' && dist < 0.68 && los) {
+          if (!p.hiding || w.spottedInLocker) {
+            triggerDeath();
+            return;
+          }
+        }
+
+        // State machine transitions
+        w.stateTimer -= dt;
+        if (w.state === 'CHASING') {
+          if (!los && w.stateTimer <= 0) {
+            w.state = 'SEARCHING';
+            w.stateTimer = 8.5;
+          }
+        } else if (w.state === 'INVESTIGATING' || w.state === 'SEARCHING') {
+          const td = Math.hypot(w.targetX - w.x, w.targetY - w.y);
+          if (td < 0.7 || w.stateTimer <= 0) {
+            w.state = 'DISENGAGING';
+            w.stateTimer = 6.0;
+            w.disengageCooldown = 4.5;
+            w.spottedInLocker = false;
+            // Retreat to distant patrol node
+            let best = PATROL_NODES[0];
+            let maxD = -1;
+            PATROL_NODES.forEach((n) => {
+              const nd = Math.hypot(n.x - p.x, n.y - p.y);
+              if (nd > maxD) { maxD = nd; best = n; }
+            });
+            w.targetX = best.x;
+            w.targetY = best.y;
+          }
+        } else if (w.state === 'DISENGAGING') {
+          if (w.stateTimer <= 0 || Math.hypot(w.targetX - w.x, w.targetY - w.y) < 0.8) {
+            w.state = 'STALKING';
+            w.stateTimer = 10;
+            pickStalkTarget();
+          }
+        } else if (w.state === 'STALKING') {
+          if (w.stateTimer <= 0 || Math.hypot(w.targetX - w.x, w.targetY - w.y) < 0.8) {
+            w.stateTimer = 9 + Math.random() * 6;
+            pickStalkTarget();
+          }
+        }
+
+        // Pathfinding update
+        w.pathTimer -= dt;
+        if (w.pathTimer <= 0) {
+          w.pathTimer = w.state === 'CHASING' ? 0.35 : 0.9;
+          w.path = findPathBFS(w.x, w.y, w.targetX, w.targetY);
+        }
+
+        // Movement along path
+        const speed = w.state === 'CHASING' ? (state.powerRestored ? 3.38 : 3.12) :
+                      w.state === 'INVESTIGATING' ? 1.85 :
+                      w.state === 'SEARCHING' ? 1.45 :
+                      w.state === 'DISENGAGING' ? 2.1 : 1.15;
+
+        let moveTargetX = w.targetX;
+        let moveTargetY = w.targetY;
+        if (w.path.length > 0) {
+          const wp = w.path[0];
+          if (Math.hypot(wp.x - w.x, wp.y - w.y) < 0.32) {
+            w.path.shift();
+          }
+          if (w.path.length > 0) {
+            moveTargetX = w.path[0].x;
+            moveTargetY = w.path[0].y;
+          }
+        }
+
+        const mdx = moveTargetX - w.x;
+        const mdy = moveTargetY - w.y;
+        const mLen = Math.hypot(mdx, mdy);
+        if (mLen > 0.05) {
+          const nx = w.x + (mdx / mLen) * speed * dt;
+          const ny = w.y + (mdy / mLen) * speed * dt;
+
+          // Push open unlocked doors if touching them
+          const tx = Math.floor(nx);
+          const ty = Math.floor(ny);
+          if (getTile(tx, ty) === 6) {
+            const d = state.doors[`${tx},${ty}`];
+            if (d && d.locked === 'none' && d.targetOpen === 0) {
+              d.targetOpen = 1;
+              audio.playDoor(true, computeStereoPan(w.x, w.y), Math.max(0.15, 1 - dist / 14));
+            }
+          }
+
+          if (!isSolidForEnemy(Math.floor(nx), Math.floor(w.y))) w.x = nx;
+          if (!isSolidForEnemy(Math.floor(w.x), Math.floor(ny))) w.y = ny;
+
+          // Enemy footsteps
+          w.stepTimer -= dt * speed;
+          if (w.stepTimer <= 0) {
+            w.stepTimer = 0.85;
+            if (dist < 14) {
+              const pan = computeStereoPan(w.x, w.y);
+              const vol = Math.max(0.05, 1 - dist / 14);
+              audio.playFootstep('enemy', pan, vol);
+            }
+          }
+        }
+      }
+
+      function pickStalkTarget() {
+        const p = state.player;
+        // Prefer nodes 7..13 tiles away from player so it lurks in halls
+        const candidates = PATROL_NODES.filter((n) => {
+          const d = Math.hypot(n.x - p.x, n.y - p.y);
+          return d >= 6.5 && d <= 15.0;
+        });
+        const list = candidates.length > 0 ? candidates : PATROL_NODES;
+        const pick = list[Math.floor(Math.random() * list.length)];
+        state.watcher.targetX = pick.x;
+        state.watcher.targetY = pick.y;
+      }
+
+      function computeStereoPan(tx, ty) {
+        const p = state.player;
+        const angleToTarget = Math.atan2(ty - p.y, tx - p.x);
+        const rel = angleToTarget - p.ang;
+        return Math.sin(rel);
+      }
+
+      function triggerJumpscareFlash(fatal) {
+        if (settings.motionReduction) return;
+        const opacity = settings.jumpscareIntensity === 'minimal' ? 0.15 :
+                        settings.jumpscareIntensity === 'reduced' ? 0.35 : (fatal ? 0.85 : 0.55);
+        ui.jumpscareFlash.style.opacity = String(opacity);
+        setTimeout(() => { ui.jumpscareFlash.style.opacity = '0'; }, fatal ? 500 : 180);
+      }
+
+      /* =========================================================
+         12. 10 CONTEXTUAL PSYCHOLOGICAL HORROR EVENTS
+         ========================================================= */
+      function updateHorrorEvents(dt) {
+        // Update active transient apparitions / outages
+        if (state.powerOutageTimer > 0) {
+          state.powerOutageTimer -= dt;
+          if (state.powerOutageTimer <= 0) {
+            audio.playPowerClunk(true);
+          }
+        }
+
+        if (state.apparition.active) {
+          state.apparition.timer -= dt;
+          if (state.apparition.timer <= 0) state.apparition.active = false;
+        }
+
+        if (state.shadowCross.active) {
+          state.shadowCross.x += state.shadowCross.vx * dt;
+          state.shadowCross.y += state.shadowCross.vy * dt;
+          state.shadowCross.timer -= dt;
+          if (state.shadowCross.timer <= 0) state.shadowCross.active = false;
+        }
+
+        // Event 4: Wheelchair in West Corridor moves slightly when player looks away!
+        const wc = state.props.find((pr) => pr.id === 'prop_wheelchair');
+        if (wc && !wc.moved) {
+          const dx = wc.x - state.player.x;
+          const dy = wc.y - state.player.y;
+          const d = Math.hypot(dx, dy);
+          if (d < 8.5) {
+            const dot = (dx / d) * Math.cos(state.player.ang) + (dy / d) * Math.sin(state.player.ang);
+            if (dot > 0.72 && hasLineOfSight(state.player.x, state.player.y, wc.x, wc.y, true)) {
+              state.wheelchairLookedAt = true;
+            } else if (state.wheelchairLookedAt && dot < 0.05) {
+              wc.moved = true;
+              wc.y += 1.5;
+              wc.x -= 0.25;
+              audio.playCreak(computeStereoPan(wc.x, wc.y));
+            }
+          }
+        }
+
+        // Wait until player has left Ward 101 and cooldown expired
+        if (state.player.x < 5.5 && state.player.y > 17.5) return;
+        state.eventCooldown -= dt;
+        if (state.eventCooldown > 0 || state.watcher.state === 'CHASING') return;
+
+        // Next event cooldown scaled by horror intensity
+        const baseWait = 28 + Math.random() * 22;
+        state.eventCooldown = baseWait / Math.max(0.4, settings.horrorIntensity);
+
+        // Pick an event different from last time
+        let idx = Math.floor(Math.random() * 9);
+        if (idx === state.lastEventIdx) idx = (idx + 1) % 9;
+        state.lastEventIdx = idx;
+
+        const p = state.player;
+        switch (idx) {
+          case 0: {
+            // 1. A door slowly closes behind the player
+            let candidate = null;
+            for (const k in state.doors) {
+              const d = state.doors[k];
+              if (d.targetOpen === 1 && d.locked === 'none') {
+                const dist = Math.hypot(d.x + 0.5 - p.x, d.y + 0.5 - p.y);
+                if (dist > 2.6 && dist < 7.5) { candidate = d; break; }
+              }
+            }
+            if (candidate) {
+              candidate.targetOpen = 0;
+              audio.playDoor(false, computeStereoPan(candidate.x + 0.5, candidate.y + 0.5), 0.7);
+            } else {
+              audio.playCreak(-0.6);
+            }
+            break;
+          }
+          case 1: {
+            // 2. A distant light turns on by itself
+            const darkLight = state.lights.find((l) => !l.on);
+            if (darkLight) {
+              darkLight.on = true;
+              audio.playPowerClunk(true);
+            } else {
+              audio.playCreak(0.65);
+            }
+            break;
+          }
+          case 2: {
+            // 3. Phantom footsteps in empty corridor
+            const pan = Math.random() < 0.5 ? -0.75 : 0.75;
+            for (let s = 0; s < 4; s++) {
+              setTimeout(() => {
+                if (appMode === 'PLAYING') audio.playFootstep('enemy', pan, 0.35 + s * 0.08);
+              }, s * 430);
+            }
+            break;
+          }
+          case 3: {
+            // 5. Dark silhouette briefly appears down hallway
+            const ax = p.x + Math.cos(p.ang) * 7.5;
+            const ay = p.y + Math.sin(p.ang) * 7.5;
+            if (getTile(Math.floor(ax), Math.floor(ay)) === 0 && hasLineOfSight(p.x, p.y, ax, ay, false)) {
+              state.apparition = { active: true, x: ax, y: ay, timer: 1.5 };
+              audio.playImpact(0);
+            }
+            break;
+          }
+          case 4: {
+            // 6. Radio produces distorted whispers
+            audio.playWhisper(computeStereoPan(11.4, 9.6));
+            break;
+          }
+          case 5: {
+            // 7. Distant scream echoes through hospital
+            audio.playDistantScream(Math.random() < 0.5 ? -0.8 : 0.8);
+            break;
+          }
+          case 6: {
+            // 8. Door handle rattles unexpectedly
+            let nearDoor = null;
+            for (const k in state.doors) {
+              const d = state.doors[k];
+              const dist = Math.hypot(d.x + 0.5 - p.x, d.y + 0.5 - p.y);
+              if (d.targetOpen === 0 && dist > 1.8 && dist < 8.5) { nearDoor = d; break; }
+            }
+            audio.playRattle(nearDoor ? computeStereoPan(nearDoor.x + 0.5, nearDoor.y + 0.5) : 0.5);
+            break;
+          }
+          case 7: {
+            // 9. Shadow briefly crosses ahead
+            const fx = p.x + Math.cos(p.ang) * 5.2;
+            const fy = p.y + Math.sin(p.ang) * 5.2;
+            if (getTile(Math.floor(fx), Math.floor(fy)) === 0) {
+              const px = -Math.sin(p.ang);
+              const py = Math.cos(p.ang);
+              state.shadowCross = {
+                active: true,
+                x: fx - px * 1.4,
+                y: fy - py * 1.4,
+                vx: px * 4.5,
+                vy: py * 4.5,
+                timer: 0.65
+              };
+            }
+            break;
+          }
+          case 8: {
+            // 10. Lights fail for several seconds
+            state.powerOutageTimer = 5.2;
+            audio.playPowerClunk(false);
+            break;
+          }
+        }
+      }
+
+      /* =========================================================
+         13. INPUT & POINTER LOCK MANAGEMENT
+         ========================================================= */
+      const keys = new Set();
+      let isDraggingLook = false;
+      let lastDragX = 0;
+
+      function releasePointerLock() {
+        if (document.pointerLockElement) {
+          try { document.exitPointerLock(); } catch (e) {}
+        }
+      }
+
+      function requestPointerLockSafe() {
+        if (appMode !== 'PLAYING' || (state && state.player.hiding)) return;
+        if (rayCanvas.requestPointerLock) {
+          try {
+            const res = rayCanvas.requestPointerLock();
+            if (res && typeof res.catch === 'function') res.catch(() => {});
+          } catch (e) {}
+        }
+      }
+
+      document.addEventListener('pointerlockchange', () => {
+        const locked = document.pointerLockElement === rayCanvas;
+        if (appMode === 'PLAYING') {
+          ui.pointerHint.classList.toggle('hidden', locked || (state && state.player.hiding));
+        }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (appMode !== 'PLAYING' || !state || state.player.hiding) return;
+        const sens = 0.0022 * settings.sensitivity;
+        if (document.pointerLockElement === rayCanvas) {
+          state.player.ang += e.movementX * sens;
+        } else if (isDraggingLook) {
+          const dx = e.clientX - lastDragX;
+          lastDragX = e.clientX;
+          state.player.ang += dx * sens * 1.3;
+        }
+      });
+
+      rayCanvas.addEventListener('mousedown', (e) => {
+        audio.unlock();
+        if (appMode !== 'PLAYING') return;
+        if (document.pointerLockElement !== rayCanvas) {
+          requestPointerLockSafe();
+          isDraggingLook = true;
+          lastDragX = e.clientX;
+        }
+      });
+
+      window.addEventListener('mouseup', () => { isDraggingLook = false; });
+
+      window.addEventListener('blur', () => { keys.clear(); isDraggingLook = false; });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          keys.clear();
+          isDraggingLook = false;
+          if (appMode === 'PLAYING') pauseGame();
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        audio.unlock();
+        const code = e.code;
+
+        if (appMode === 'DEATH' && code === 'KeyR') {
+          e.preventDefault();
+          retryRun();
+          return;
+        }
+
+        if (code === 'Tab') {
+          e.preventDefault();
+          if (appMode === 'PLAYING') openInventory();
+          else if (appMode === 'INVENTORY') closeSubModal();
+          return;
+        }
+
+        if (code === 'Escape') {
+          if (appMode === 'PLAYING') pauseGame();
+          else if (appMode === 'PAUSED') resumeGame();
+          else if (appMode === 'INVENTORY' || appMode === 'MAP' || appMode === 'NOTE' || appMode === 'KEYPAD') closeSubModal();
+          else if (appMode === 'HOWTO' || appMode === 'SETTINGS') closeMenuPanel();
+          return;
+        }
+
+        if (appMode === 'NOTE' && code === 'KeyE') {
+          e.preventDefault();
+          closeSubModal();
+          return;
+        }
+
+        if (appMode === 'KEYPAD') {
+          if (/^Digit([0-9])$/.test(code) || /^Numpad([0-9])$/.test(code)) {
+            const digit = code.slice(-1);
+            const btn = document.querySelector(`#keypadGrid button[data-k="${digit}"]`);
+            if (btn) btn.click();
+          } else if (code === 'Backspace') {
+            document.querySelector('#keypadGrid button[data-k="CLR"]').click();
+          } else if (code === 'Enter' || code === 'NumpadEnter') {
+            document.querySelector('#keypadGrid button[data-k="ENT"]').click();
+          }
+          return;
+        }
+
+        if (appMode !== 'PLAYING' || !state) return;
+
+        if (code === 'KeyM') {
+          if (state.inv.map) openMap();
+          else showSubtitle('You have not found the Hospital Map yet.');
+          return;
+        }
+        if (code === 'KeyF') {
+          if (!state.inv.hasFlashlight) {
+            showSubtitle('You do not have a flashlight yet.');
+            return;
+          }
+          if (state.player.hiding) return;
+          state.player.flashlightOn = !state.player.flashlightOn;
+          audio.playFlashlightClick(state.player.flashlightOn);
+          return;
+        }
+        if (code === 'KeyE') {
+          handleInteract();
+          return;
+        }
+        if (code === 'KeyC' || code === 'ControlLeft' || code === 'ControlRight') {
+          if (!e.repeat) state.player.crouched = !state.player.crouched;
+          return;
+        }
+
+        keys.add(code);
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys.delete(e.code);
+      });
+
+      /* =========================================================
+         14. GAMEPLAY LOOP & SCREEN TRANSITIONS
+         ========================================================= */
+      function hideAllScreens() {
+        ui.menuScreen.classList.add('hidden');
+        ui.howToScreen.classList.add('hidden');
+        ui.settingsScreen.classList.add('hidden');
+        ui.pauseScreen.classList.add('hidden');
+        ui.inventoryScreen.classList.add('hidden');
+        ui.mapScreen.classList.add('hidden');
+        ui.noteScreen.classList.add('hidden');
+        ui.keypadScreen.classList.add('hidden');
+        ui.deathScreen.classList.add('hidden');
+        ui.endingScreen.classList.add('hidden');
+      }
+
+      function refreshMenuContinue() {
+        const saved = safeStorage.get(STORAGE_KEYS.save);
+        ui.btnContinue.classList.toggle('hidden', !saved);
+        const count = (unlockedEndings.escape ? 1 : 0) + (unlockedEndings.secret ? 1 : 0);
+        if (count > 0) {
+          ui.endingsMeta.textContent = `Endings Discovered: ${count} / 2`;
+          ui.endingsMeta.classList.remove('hidden');
+        } else {
+          ui.endingsMeta.classList.add('hidden');
+        }
+      }
+
+      function startNewGame() {
+        audio.unlock();
+        keys.clear();
+        state = createFreshRun(null);
+        hideAllScreens();
+        ui.hud.classList.remove('hidden');
+        ui.hidingBanner.classList.add('hidden');
+        appMode = 'PLAYING';
+        requestPointerLockSafe();
+        ui.pointerHint.classList.toggle('hidden', document.pointerLockElement === rayCanvas);
+        showObjective(state.objectiveText);
+        showSubtitle('3:17 AM. Something is inside the walls of Blackthorn Asylum.');
+      }
+
+      function continueSavedGame() {
+        audio.unlock();
+        const saved = safeStorage.get(STORAGE_KEYS.save);
+        if (!saved) return startNewGame();
+        keys.clear();
+        state = createFreshRun(saved);
+        hideAllScreens();
+        ui.hud.classList.remove('hidden');
+        ui.hidingBanner.classList.add('hidden');
+        appMode = 'PLAYING';
+        requestPointerLockSafe();
+        ui.pointerHint.classList.toggle('hidden', document.pointerLockElement === rayCanvas);
+        showObjective(state.objectiveText);
+      }
+
+      function pauseGame() {
+        keys.clear();
+        appMode = 'PAUSED';
+        releasePointerLock();
+        hideAllScreens();
+        ui.pauseScreen.classList.remove('hidden');
+      }
+
+      function resumeGame() {
+        keys.clear();
+        hideAllScreens();
+        appMode = 'PLAYING';
+        requestPointerLockSafe();
+      }
+
+      function returnToMainMenu() {
+        keys.clear();
+        releasePointerLock();
+        hideAllScreens();
+        ui.hud.classList.add('hidden');
+        ui.hidingBanner.classList.add('hidden');
+        appMode = 'MENU';
+        refreshMenuContinue();
+        ui.menuScreen.classList.remove('hidden');
+      }
+
+      function closeSubModal() {
+        hideAllScreens();
+        appMode = 'PLAYING';
+        requestPointerLockSafe();
+      }
+
+      function closeMenuPanel() {
+        hideAllScreens();
+        if (subReturnMode === 'PAUSED') {
+          appMode = 'PAUSED';
+          ui.pauseScreen.classList.remove('hidden');
+        } else {
+          appMode = 'MENU';
+          ui.menuScreen.classList.remove('hidden');
+        }
+      }
+
+      function triggerDeath() {
+        if (appMode === 'DEATH') return;
+        keys.clear();
+        appMode = 'DEATH';
+        releasePointerLock();
+        audio.playScare(true);
+        triggerJumpscareFlash(true);
+        hideAllScreens();
+        ui.hud.classList.add('hidden');
+        ui.hidingBanner.classList.add('hidden');
+        ui.deathScreen.classList.remove('hidden');
+        document.getElementById('btnDeathCheckpoint').classList.toggle('hidden', !safeStorage.get(STORAGE_KEYS.save));
+      }
+
+      function retryRun() {
+        const saved = safeStorage.get(STORAGE_KEYS.save);
+        if (saved) continueSavedGame();
+        else startNewGame();
+      }
+
+      function triggerEnding(isSecret) {
+        keys.clear();
+        appMode = 'ENDING';
+        releasePointerLock();
+        hideAllScreens();
+        ui.hud.classList.add('hidden');
+        ui.hidingBanner.classList.add('hidden');
+        if (isSecret) {
+          unlockedEndings.secret = true;
+          document.getElementById('endingKicker').textContent = 'Secret Ending · 2 of 2';
+          document.getElementById('endingTitle').textContent = 'SUBJECT 09';
+          document.getElementById('endingBody').textContent =
+            'You step beyond the rusted iron gate into freezing fog, clutching the damp archive dossier in your trembling hand. Behind you, the hospital clock remains frozen at 3:17 AM—yet inside your coat pocket, the intake wristband matches the number on the file. You did not escape Blackthorn. You only opened a door it had forgotten.';
+        } else {
+          unlockedEndings.escape = true;
+          document.getElementById('endingKicker').textContent = 'Escape Ending · 1 of 2';
+          document.getElementById('endingTitle').textContent = 'OUTSIDE THE WALLS';
+          document.getElementById('endingBody').textContent =
+            'The heavy double gates groan open as the cipher accepts your entry. You sprint into the dark pine line before the power dies again inside Blackthorn Asylum. Looking back once across the courtyard, a single pale shape stands motionless behind the wired glass—watching you disappear into the mist.';
+        }
+        safeStorage.set(STORAGE_KEYS.endings, unlockedEndings);
+        safeStorage.remove(STORAGE_KEYS.save);
+        ui.endingScreen.classList.remove('hidden');
+      }
+
+      /* =========================================================
+         15. INVENTORY, MAP, NOTE READER, KEYPAD MODALS
+         ========================================================= */
+      function openInventory() {
+        keys.clear();
+        appMode = 'INVENTORY';
+        releasePointerLock();
+        hideAllScreens();
+        renderInventory();
+        ui.inventoryScreen.classList.remove('hidden');
+      }
+
+      function renderInventory() {
+        const itemsList = document.getElementById('invItemsList');
+        const notesList = document.getElementById('invNotesList');
+        const dTitle = document.getElementById('invDetailTitle');
+        const dText = document.getElementById('invDetailText');
+        const dAction = document.getElementById('invActionArea');
+
+        itemsList.innerHTML = '';
+        notesList.innerHTML = '';
+        dAction.innerHTML = '';
+
+        const carried = [];
+        if (state.inv.hasFlashlight) carried.push({ name: 'Hospital Flashlight', count: `${Math.ceil(state.player.battery)}%`, desc: 'Heavy-duty asylum torch. Battery drains slowly while active.' });
+        if (state.inv.batteries > 0) carried.push({ name: 'Spare Battery', count: `x${state.inv.batteries}`, desc: 'Restores +60% flashlight battery charge.', action: 'useBattery' });
+        if (state.inv.rustedKey) carried.push({ name: 'Rusted Key', count: '1', desc: 'Corroded iron key stamped "MAINT-S". Opens East Maintenance Storage.' });
+        if (state.inv.fuse) carried.push({ name: 'Generator Fuse', count: '1', desc: 'High-amperage glass fuse for the Boiler Room power generator.' });
+        if (state.inv.securityCard) carried.push({ name: 'Security Access Card', count: 'LVL 2', desc: 'Required for Ward 0 Archive and the Main Gate override.' });
+        if (state.inv.map) carried.push({ name: 'Asylum Floor Plan', count: '1', desc: 'Press [M] during exploration to consult the Blackthorn blueprint.' });
+
+        if (carried.length === 0) {
+          itemsList.innerHTML = '<div style="color: var(--text-dim); font-size: 13px;">No equipment carried.</div>';
+        } else {
+          carried.forEach((c) => {
+            const btn = document.createElement('button');
+            btn.className = 'inv-item';
+            btn.innerHTML = `<span>${c.name}</span><span class="inv-count">${c.count}</span>`;
+            btn.onclick = () => {
+              dTitle.textContent = c.name;
+              dText.textContent = c.desc;
+              dAction.innerHTML = '';
+              if (c.action === 'useBattery') {
+                const useBtn = document.createElement('button');
+                useBtn.className = 'btn btn-primary btn-sm';
+                useBtn.textContent = 'Load Battery (+60%)';
+                useBtn.onclick = () => {
+                  if (state.inv.batteries > 0 && state.player.battery < 99) {
+                    state.inv.batteries--;
+                    state.player.battery = Math.min(100, state.player.battery + 60);
+                    audio.playPickup();
+                    renderInventory();
+                  }
+                };
+                dAction.appendChild(useBtn);
+              }
+            };
+            itemsList.appendChild(btn);
+          });
+        }
+
+        if (state.inv.notes.length === 0) {
+          notesList.innerHTML = '<div style="color: var(--text-dim); font-size: 13px;">No notes recovered yet.</div>';
+        } else {
+          state.inv.notes.forEach((n) => {
+            const btn = document.createElement('button');
+            btn.className = 'inv-item';
+            btn.innerHTML = `<span>${n.title}</span><span class="inv-count">READ</span>`;
+            btn.onclick = () => {
+              dTitle.textContent = n.title;
+              dText.textContent = n.body;
+              dAction.innerHTML = '';
+            };
+            notesList.appendChild(btn);
+          });
+        }
+      }
+
+      function openNoteReader(noteObj) {
+        keys.clear();
+        appMode = 'NOTE';
+        releasePointerLock();
+        hideAllScreens();
+        document.getElementById('noteReaderTitle').textContent = noteObj.title;
+        document.getElementById('noteReaderBody').textContent = noteObj.body;
+        ui.noteScreen.classList.remove('hidden');
+      }
+
+      function openMap() {
+        keys.clear();
+        appMode = 'MAP';
+        releasePointerLock();
+        hideAllScreens();
+        document.getElementById('mapObjectiveShort').textContent = getRoomName(state.player.x, state.player.y);
+        renderMapCanvas();
+        ui.mapScreen.classList.remove('hidden');
+      }
+
+      function renderMapCanvas() {
+        const ctx = mapCtx;
+        const cell = 480 / MAP_W;
+        ctx.fillStyle = '#070909';
+        ctx.fillRect(0, 0, 480, 480);
+
+        for (let y = 0; y < MAP_H; y++) {
+          for (let x = 0; x < MAP_W; x++) {
+            const t = getTile(x, y);
+            if (t === 0) {
+              ctx.fillStyle = '#141918';
+              ctx.fillRect(x * cell, y * cell, cell - 0.5, cell - 0.5);
+            } else if (t === 6) {
+              const d = state.doors[`${x},${y}`];
+              ctx.fillStyle = d && d.locked !== 'none' ? '#8c2929' : '#6f7e72';
+              ctx.fillRect(x * cell + 2, y * cell + 2, cell - 4, cell - 4);
+            } else if (t === 7) {
+              ctx.fillStyle = '#b89862';
+              ctx.fillRect(x * cell, y * cell + 4, cell, cell - 8);
+            } else if (t === 8) {
+              ctx.fillStyle = '#3d4f48';
+              ctx.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
+            } else {
+              ctx.fillStyle = '#080b0b';
+              ctx.fillRect(x * cell, y * cell, cell, cell);
+            }
+          }
+        }
+
+        // Room labels
+        ctx.fillStyle = 'rgba(200, 210, 202, 0.42)';
+        ctx.font = '10px Consolas, monospace';
+        ctx.fillText('BOILER', 18, 56);
+        ctx.fillText('DAYROOM', 206, 56);
+        ctx.fillText('RECORDS', 392, 56);
+        ctx.fillText('W.103', 24, 174);
+        ctx.fillText('WARD 0', 394, 174);
+        ctx.fillText('NURSE STN', 204, 240);
+        ctx.fillText('W.102', 24, 286);
+        ctx.fillText('MORGUE', 394, 286);
+        ctx.fillText('W.101', 24, 404);
+        ctx.fillText('STORAGE', 390, 404);
+        ctx.fillText('EXIT', 228, 442);
+
+        // Player arrow
+        const px = state.player.x * cell;
+        const py = state.player.y * cell;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(state.player.ang);
+        ctx.fillStyle = '#b89862';
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-5, -5);
+        ctx.lineTo(-5, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      let keypadEntry = '';
+      function openKeypad() {
+        keys.clear();
+        keypadEntry = '';
+        appMode = 'KEYPAD';
+        releasePointerLock();
+        hideAllScreens();
+        document.getElementById('keypadStatus').textContent = '';
+        updateKeypadUI();
+        ui.keypadScreen.classList.remove('hidden');
+      }
+
+      function updateKeypadUI() {
+        const chars = keypadEntry.padEnd(4, '_').split('');
+        document.getElementById('keypadDisplay').textContent = chars.join(' ');
+      }
+
+      document.getElementById('keypadGrid').addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const k = btn.dataset.k;
+        audio.playFlashlightClick(true);
+        if (k === 'CLR') {
+          keypadEntry = '';
+          document.getElementById('keypadStatus').textContent = '';
+        } else if (k === 'ENT') {
+          if (keypadEntry === state.exitCode) {
+            state.exitUnlocked = true;
+            state.doors['11,22'].locked = 'none';
+            state.doors['12,22'].locked = 'none';
+            state.doors['11,22'].targetOpen = 1;
+            state.doors['12,22'].targetOpen = 1;
+            audio.playDoor(true);
+            closeSubModal();
+            showObjective('Walk through the South Main Gate into the night');
+            showSubtitle('OVERRIDE ACCEPTED. The Main Gate slides open!');
+          } else {
+            document.getElementById('keypadStatus').textContent = 'INVALID OVERRIDE CODE';
+            keypadEntry = '';
+            state.noiseLevel = 0.9;
+            audio.playRattle(0);
+          }
+        } else if (keypadEntry.length < 4) {
+          keypadEntry += k;
+        }
+        updateKeypadUI();
+      });
+
+      /* =========================================================
+         16. MAIN SIMULATION UPDATE
+         ========================================================= */
+      function updateGameplay(dt) {
+        state.time += dt;
+        if (state.jumpscareCooldown > 0) state.jumpscareCooldown -= dt;
+        state.noiseLevel = Math.max(0, state.noiseLevel - dt * 1.4);
+
+        const p = state.player;
+
+        // Smooth door opening / closing
+        for (const k in state.doors) {
+          const d = state.doors[k];
+          if (d.openAmount < d.targetOpen) {
+            d.openAmount = Math.min(1, d.openAmount + dt * 1.8);
+          } else if (d.openAmount > d.targetOpen) {
+            d.openAmount = Math.max(0, d.openAmount - dt * 1.4);
+          }
+        }
+
+        // Player movement (disabled while hiding)
+        let moving = false;
+        let sprinting = false;
+        if (!p.hiding) {
+          // Arrow key look fallback
+          const turnSpeed = 2.05 * settings.sensitivity;
+          if (keys.has('ArrowLeft')) p.ang -= turnSpeed * dt;
+          if (keys.has('ArrowRight')) p.ang += turnSpeed * dt;
+
+          let forward = 0;
+          let strafe = 0;
+          if (keys.has('KeyW') || keys.has('ArrowUp')) forward += 1;
+          if (keys.has('KeyS') || keys.has('ArrowDown')) forward -= 1;
+          if (keys.has('KeyA')) strafe -= 1;
+          if (keys.has('KeyD')) strafe += 1;
+
+          const inputLen = Math.hypot(forward, strafe);
+          moving = inputLen > 0;
+
+          if (keys.has('ShiftLeft') || keys.has('ShiftRight')) {
+            if (moving && !p.crouched && p.stamina > 4) {
+              sprinting = true;
+            }
+          }
+
+          if (sprinting) {
+            p.stamina = Math.max(0, p.stamina - dt * 24);
+          } else {
+            p.stamina = Math.min(100, p.stamina + dt * 15);
+          }
+
+          const targetSpeed = !moving ? 0 : (p.crouched ? 1.32 : (sprinting ? 4.15 : 2.35));
+          let wishX = 0;
+          let wishY = 0;
+          if (moving) {
+            const nf = forward / inputLen;
+            const ns = strafe / inputLen;
+            const cos = Math.cos(p.ang);
+            const sin = Math.sin(p.ang);
+            wishX = (cos * nf - sin * ns) * targetSpeed;
+            wishY = (sin * nf + cos * ns) * targetSpeed;
+          }
+
+          // Smooth acceleration / damping
+          const accel = moving ? 12.0 : 14.0;
+          p.vx += (wishX - p.vx) * Math.min(1, accel * dt);
+          p.vy += (wishY - p.vy) * Math.min(1, accel * dt);
+
+          const nextX = p.x + p.vx * dt;
+          const nextY = p.y + p.vy * dt;
+          const colR = 0.24;
+
+          if (!isPositionBlocked(nextX, p.y, colR)) p.x = nextX;
+          else p.vx = 0;
+
+          if (!isPositionBlocked(p.x, nextY, colR)) p.y = nextY;
+          else p.vy = 0;
+
+          const actualSpeed = Math.hypot(p.vx, p.vy);
+          if (actualSpeed > 0.35) {
+            p.bobPhase += dt * (sprinting ? 13 : 8.5);
+            state.footstepTimer -= dt * actualSpeed;
+            if (state.footstepTimer <= 0) {
+              state.footstepTimer = sprinting ? 1.15 : 1.05;
+              audio.playFootstep(sprinting ? 'run' : p.crouched ? 'crouch' : 'walk', 0, 1);
+            }
+            if (sprinting) state.noiseLevel = Math.max(state.noiseLevel, 0.85);
+            else if (!p.crouched) state.noiseLevel = Math.max(state.noiseLevel, 0.35);
+          }
+        } else {
+          p.stamina = Math.min(100, p.stamina + dt * 18);
+        }
+
+        // Flashlight battery drain & flicker
+        if (p.flashlightOn && state.inv.hasFlashlight) {
+          p.battery = Math.max(0, p.battery - dt * 0.72);
+          if (p.battery <= 0) {
+            p.flashlightOn = false;
+            audio.playFlashlightClick(false);
+            showSubtitle('Flashlight battery depleted.');
+          }
+        }
+
+        // Escape check
+        if (state.exitUnlocked && p.y >= 22.65) {
+          triggerEnding(state.inv.secretDoc);
+          return;
+        }
+
+        // Update AI & Events
+        updateWatcher(dt);
+        if (appMode !== 'PLAYING') return;
+        updateHorrorEvents(dt);
+
+        // HUD updates
+        const target = p.hiding ? null : getLookTarget();
+        if (target) {
+          ui.interactPrompt.textContent = getTargetPrompt(target);
+          ui.interactPrompt.classList.remove('hidden');
+          ui.crosshair.classList.add('active');
+        } else {
+          ui.interactPrompt.classList.add('hidden');
+          ui.crosshair.classList.remove('active');
+        }
+
+        ui.batteryRow.classList.toggle('hidden', !state.inv.hasFlashlight);
+        const batVal = Math.ceil(p.battery);
+        ui.batteryPct.textContent = `${batVal}%`;
+        ui.batteryFill.style.width = `${batVal}%`;
+        ui.batteryFill.classList.toggle('low', batVal <= 20);
+
+        const stamVal = Math.ceil(p.stamina);
+        ui.staminaRow.classList.toggle('hidden', stamVal >= 99);
+        ui.staminaPct.textContent = `${stamVal}%`;
+        ui.staminaFill.style.width = `${stamVal}%`;
+
+        // Continuous audio update
+        const w = state.watcher;
+        const distToEnemy = Math.hypot(w.x - p.x, w.y - p.y);
+        const enemyProx = w.state === 'DORMANT' ? 0 : Math.max(0, 1 - distToEnemy / 11);
+        const nearWin = p.y > 18 ? 1 : 0;
+        const chasing = w.state === 'CHASING';
+
+        audio.updateContinuous(dt, {
+          muted: false,
+          time: state.time,
+          tension: Math.max(enemyProx, chasing ? 1 : 0),
+          chasing,
+          enemyProximity: enemyProx,
+          enemyPan: computeStereoPan(w.x, w.y),
+          nearWindow: nearWin,
+          powerOut: state.powerOutageTimer > 0,
+          powerRestored: state.powerRestored,
+          flicker: Math.sin(state.time * 19) > 0.7
+        });
+      }
+
+      /* =========================================================
+         17. SINGLE REQUESTANIMATIONFRAME LOOP
+         ========================================================= */
+      let lastTs = performance.now();
+      let menuClock = 0;
+
+      const MENU_LIGHTS = [
+        { x: 6.5, y: 12.5, radius: 4.5, base: 0.45, flicker: true, on: true },
+        { x: 6.5, y: 7.5, radius: 4.2, base: 0.42, flicker: true, on: true }
+      ];
+      const MENU_PROPS = [
+        { type: 'wheelchair', sprite: 'wheelchair', x: 6.7, y: 13.5 },
+        { type: 'cables', sprite: 'cables', x: 6.5, y: 11.2 }
+      ];
+
+      function frame(ts) {
+        const rawDt = (ts - lastTs) / 1000;
+        lastTs = ts;
+        const dt = Math.min(0.05, Math.max(0.001, rawDt));
+
+        if (appMode === 'PLAYING' && state) {
+          updateGameplay(dt);
+          if (appMode === 'PLAYING') {
+            const p = state.player;
+            const crouchOff = p.crouched ? -16 : 0;
+            const bob = (settings.headBob && !settings.motionReduction && !p.hiding)
+              ? Math.sin(p.bobPhase) * 3.5 * Math.min(1, Math.hypot(p.vx, p.vy) / 2.5)
+              : 0;
+
+            let flashStrength = 0;
+            if (p.flashlightOn && state.inv.hasFlashlight) {
+              flashStrength = p.battery < 18 && Math.sin(state.time * 27) > 0.4 ? 0.25 : 0.92;
+            }
+
+            const wDist = Math.hypot(state.watcher.x - p.x, state.watcher.y - p.y);
+            const chaseVis = state.watcher.state === 'CHASING' ? Math.max(0.25, 1 - wDist / 10) : 0;
+
+            renderScene(
+              p.x, p.y, p.ang, crouchOff + bob,
+              p.flashlightOn && state.inv.hasFlashlight,
+              flashStrength,
+              state.time,
+              state.lights,
+              state.props,
+              state.items,
+              state.watcher.state === 'DORMANT' ? null : state.watcher,
+              state.apparition,
+              state.shadowCross,
+              state.powerOutageTimer > 0
+            );
+            renderOverlayFX(dt, state.time, p.hiding, chaseVis, state.powerOutageTimer > 0);
+          }
+        } else if (appMode === 'MENU' || appMode === 'HOWTO' || appMode === 'SETTINGS') {
+          menuClock += dt;
+          const sway = Math.sin(menuClock * 0.45) * 0.035;
+          const menuWatcher = { x: 6.5, y: 8.6, state: 'STALKING', headTwitch: Math.sin(menuClock * 2.2) > 0.75 ? 1 : 0 };
+          renderScene(
+            6.5, 17.5, -Math.PI * 0.5 + sway, Math.sin(menuClock * 1.1) * 2,
+            false, 0, menuClock, MENU_LIGHTS, MENU_PROPS, [], menuWatcher, null, null, false
+          );
+          renderOverlayFX(dt, menuClock, false, 0, false);
+          audio.updateContinuous(dt, {
+            muted: false, time: menuClock, tension: 0.15, chasing: false,
+            enemyProximity: 0, enemyPan: 0, nearWindow: 0.6,
+            powerOut: false, powerRestored: false, flicker: false
+          });
+        } else {
+          audio.updateContinuous(dt, {
+            muted: true, time: menuClock, tension: 0, chasing: false,
+            enemyProximity: 0, enemyPan: 0, nearWindow: 0,
+            powerOut: false, powerRestored: false, flicker: false
+          });
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      /* =========================================================
+         18. BUTTON WIRING & SETTINGS SYNC
+         ========================================================= */
+      function syncSettingsUI() {
+        document.getElementById('setVolume').value = Math.round(settings.masterVolume * 100);
+        document.getElementById('valVolume').textContent = `${Math.round(settings.masterVolume * 100)}%`;
+
+        document.getElementById('setHorror').value = Math.round(settings.horrorIntensity * 100);
+        document.getElementById('valHorror').textContent = `${Math.round(settings.horrorIntensity * 100)}%`;
+
+        document.getElementById('setSensitivity').value = Math.round(settings.sensitivity * 100);
+        document.getElementById('valSensitivity').textContent = `${Math.round(settings.sensitivity * 100)}%`;
+
+        document.getElementById('setFov').value = settings.fov;
+        document.getElementById('valFov').textContent = `${settings.fov}°`;
+
+        document.getElementById('setQuality').value = settings.graphicsQuality;
+        document.getElementById('setJumpscare').value = settings.jumpscareIntensity;
+        document.getElementById('btnToggleBob').textContent = settings.headBob ? 'On' : 'Off';
+        document.getElementById('btnToggleMotion').textContent = settings.motionReduction ? 'On' : 'Off';
+      }
+
+      document.getElementById('setVolume').addEventListener('input', (e) => {
+        settings.masterVolume = Number(e.target.value) / 100;
+        syncSettingsUI();
+        saveSettings();
+      });
+      document.getElementById('setHorror').addEventListener('input', (e) => {
+        settings.horrorIntensity = Number(e.target.value) / 100;
+        syncSettingsUI();
+        saveSettings();
+      });
+      document.getElementById('setSensitivity').addEventListener('input', (e) => {
+        settings.sensitivity = Number(e.target.value) / 100;
+        syncSettingsUI();
+        saveSettings();
+      });
+      document.getElementById('setFov').addEventListener('input', (e) => {
+        settings.fov = Number(e.target.value);
+        syncSettingsUI();
+        saveSettings();
+      });
+      document.getElementById('setQuality').addEventListener('change', (e) => {
+        settings.graphicsQuality = e.target.value;
+        resizeRenderBuffers();
+        saveSettings();
+      });
+      document.getElementById('setJumpscare').addEventListener('change', (e) => {
+        settings.jumpscareIntensity = e.target.value;
+        saveSettings();
+      });
+      document.getElementById('btnToggleBob').addEventListener('click', () => {
+        settings.headBob = !settings.headBob;
+        syncSettingsUI();
+        saveSettings();
+      });
+      document.getElementById('btnToggleMotion').addEventListener('click', () => {
+        settings.motionReduction = !settings.motionReduction;
+        syncSettingsUI();
+        saveSettings();
+      });
+      document.getElementById('btnFullscreen').addEventListener('click', () => {
+        try {
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+          else document.exitFullscreen();
+        } catch (e) {}
+      });
+
+      // Navigation Buttons
+      document.getElementById('btnNewGame').onclick = startNewGame;
+      document.getElementById('btnContinue').onclick = continueSavedGame;
+      document.getElementById('btnHowToPlay').onclick = () => {
+        audio.unlock();
+        subReturnMode = 'MENU';
+        appMode = 'HOWTO';
+        hideAllScreens();
+        ui.howToScreen.classList.remove('hidden');
+      };
+      document.getElementById('btnSettingsMenu').onclick = () => {
+        audio.unlock();
+        subReturnMode = 'MENU';
+        appMode = 'SETTINGS';
+        hideAllScreens();
+        syncSettingsUI();
+        ui.settingsScreen.classList.remove('hidden');
+      };
+      document.getElementById('btnExitTitle').onclick = () => {
+        audio.unlock();
+        returnToMainMenu();
+      };
+
+      document.getElementById('btnCloseHowTo').onclick = closeMenuPanel;
+      document.getElementById('btnCloseSettings').onclick = closeMenuPanel;
+
+      document.getElementById('btnResume').onclick = resumeGame;
+      document.getElementById('btnPauseHowTo').onclick = () => {
+        subReturnMode = 'PAUSED';
+        appMode = 'HOWTO';
+        hideAllScreens();
+        ui.howToScreen.classList.remove('hidden');
+      };
+      document.getElementById('btnPauseSettings').onclick = () => {
+        subReturnMode = 'PAUSED';
+        appMode = 'SETTINGS';
+        hideAllScreens();
+        syncSettingsUI();
+        ui.settingsScreen.classList.remove('hidden');
+      };
+      document.getElementById('btnPauseExit').onclick = returnToMainMenu;
+
+      document.getElementById('btnCloseInventory').onclick = closeSubModal;
+      document.getElementById('btnCloseMap').onclick = closeSubModal;
+      document.getElementById('btnCloseNote').onclick = closeSubModal;
+      document.getElementById('btnCloseKeypad').onclick = closeSubModal;
+
+      document.getElementById('btnDeathRetry').onclick = retryRun;
+      document.getElementById('btnDeathCheckpoint').onclick = continueSavedGame;
+      document.getElementById('btnDeathMenu').onclick = returnToMainMenu;
+
+      document.getElementById('btnEndingMenu').onclick = returnToMainMenu;
+      document.getElementById('btnEndingReplay').onclick = startNewGame;
+
+      /* =========================================================
+         19. INIT
+         ========================================================= */
+      window.addEventListener('resize', resizeRenderBuffers);
+      resizeRenderBuffers();
+      syncSettingsUI();
+      refreshMenuContinue();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
