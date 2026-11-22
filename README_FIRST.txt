@@ -1,33 +1,40 @@
-THE HOLLOW - ONE-CLICK WINDOWS DESKTOP APP
-=========================================
+COSMIC BREAKER - WINDOWS DESKTOP SHORTCUT PACKAGE
+=================================================
 
-INSTALL:
-1. Extract the entire ZIP into a normal folder on Windows 10/11.
-2. Double-click INSTALL_DESKTOP_APP.cmd.
-3. Look for THE HOLLOW on your Desktop and in the Start Menu.
-4. Double-click the shortcut to play in a separate app-style window.
+INSTALL (Windows 10 / Windows 11)
+1. Right-click Cosmic_Breaker_Desktop_One_Click.zip and choose Extract All.
+2. Open the extracted folder.
+3. Double-click INSTALL_DESKTOP_APP.cmd.
+4. The desktop now has a 'Cosmic Breaker' icon.
+5. Double-click the icon to play the game in its own window.
 
-REQUIREMENTS:
-- Windows 10 or 11.
-- Microsoft Edge or Google Chrome already installed.
-- PowerShell (included with Windows).
-- No Node.js, npm, internet connection, or administrator access is required.
+WHAT IT DOES
+- Copies the original game into %LOCALAPPDATA%\Cosmic Breaker\brick.html
+- Adds a desktop shortcut and a Start Menu shortcut.
+- Opens the installed file using Microsoft Edge or Google Chrome app-window mode,
+  without normal tabs and an address bar.
+- Displays a custom Cosmic Breaker icon.
+- Never installs Node.js, Electron, or third-party runtimes.
+- Does not require administrator rights or internet.
+- Works even after the extracted folder is deleted or moved.
 
-IMPORTANT:
-- This is an app-style browser shortcut, NOT a compiled native EXE.
-- The installer copies the game to %LOCALAPPDATA%\TheHollowDesktop.
-- The game can run offline once installed.
-- Its saves/settings use a dedicated browser profile, stored in the installed folder.
-- You may delete the extracted ZIP folder once installation is complete.
-- To remove shortcuts, use UNINSTALL_DESKTOP_APP.cmd (preserves saved games).
-- If you are on an organization-managed PC, browser or PowerShell policies may block launching.
-- For mouse capture in-game, click inside the game window. Escape releases capture.
+REQUIREMENTS
+- Windows 10 or 11
+- Microsoft Edge or Google Chrome installed. Edge normally comes with Windows.
+- This is a browser-powered app window, NOT a separately compiled .exe.
 
-FILES:
-THE HOLLOW.html              Your original standalone game (unchanged)
-The_Hollow.ico              Custom game icon
-INSTALL_DESKTOP_APP.cmd     Double-click this to install
-INSTALL_DESKTOP_APP.ps1     Windows shortcut installer
-UNINSTALL_DESKTOP_APP.cmd   Shortcut removal
-UNINSTALL_DESKTOP_APP.ps1   Windows shortcut removal logic
-README_FIRST.txt           This help file
+UNINSTALL
+Run REMOVE_DESKTOP_APP.cmd from the extracted folder.
+Browser high-score data may remain stored in your browser profile.
+
+TROUBLESHOOTING
+- Extract ALL files first: do not run the .cmd while browsing inside a ZIP viewer.
+- Windows might show a security prompt for downloaded .cmd/.ps1 files;
+  review the included scripts and run them only if you trust the source.
+- If Windows has blocked the downloaded ZIP, right-click ZIP > Properties >
+  Unblock (when offered), then extract again.
+- The shortcut uses the browser that was installed when you ran the installer.
+
+YOUR GAME
+Your original 'brick.html' is included unchanged as COSMIC BREAKER.
+No external assets or libraries were found in the uploaded HTML.
